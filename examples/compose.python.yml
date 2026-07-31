@@ -1,0 +1,34 @@
+services:
+  inventoryservice:
+    command:
+      - python
+      - -OO
+      - /benchmark/python_entrypoint.py
+      - inventory_service.main
+      - --config
+      - /workspace/inventoryservice/config/config.yaml
+      - --overrides
+      - /workspace/inventoryservice/config/docker_overrides.yaml
+    environment:
+      PYTHONASYNCIODEBUG: "0"
+      PYTHONHASHSEED: "0"
+      PYTHONOPTIMIZE: "2"
+    volumes:
+      - ${BENCHMARK_DIR}/python_entrypoint.py:/benchmark/python_entrypoint.py:ro
+
+  orderservice:
+    command:
+      - python
+      - -OO
+      - /benchmark/python_entrypoint.py
+      - order_service.main
+      - --config
+      - /workspace/orderservice/config/config.yaml
+      - --overrides
+      - /workspace/orderservice/config/docker_overrides.yaml
+    environment:
+      PYTHONASYNCIODEBUG: "0"
+      PYTHONHASHSEED: "0"
+      PYTHONOPTIMIZE: "2"
+    volumes:
+      - ${BENCHMARK_DIR}/python_entrypoint.py:/benchmark/python_entrypoint.py:ro
