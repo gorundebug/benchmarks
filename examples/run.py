@@ -157,7 +157,12 @@ def prepare_cpp_configs(service_cores: int) -> None:
         static_config = static_config.replace(
             "        tracing: otlp", "        tracing: default"
         )
-        static_config = static_config.replace("level: info", "level: warning")
+        # "none" fully suppresses log output (userver logging::Level::kNone).
+        # servicelib bridges its own logging through userver's LOG_* macros
+        # too, so this also silences servicelib's warnings/errors -- fine
+        # here since a non-zero error rate already fails the benchmark on
+        # its own, independent of whether we can see a log line about it.
+        static_config = static_config.replace("level: info", "level: none")
         static_config = _set_worker_threads(static_config, "main-task-processor", service_cores)
         static_config = _set_worker_threads(
             static_config, "fs-task-processor", AUX_TASK_PROCESSOR_THREADS
