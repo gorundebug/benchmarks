@@ -184,6 +184,12 @@ def main() -> int:
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--preallocated-vus", type=int, default=512)
     parser.add_argument("--max-vus", type=int, default=8192)
+    parser.add_argument(
+        "--max-map-count",
+        type=int,
+        default=1_048_576,
+        help="vm.max_map_count to set host/VM-wide before running (0 to leave it untouched)",
+    )
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument(
         "--language",
@@ -199,6 +205,7 @@ def main() -> int:
         or args.runs <= 0
         or args.preallocated_vus <= 0
         or args.max_vus < args.preallocated_vus
+        or args.max_map_count < 0
     ):
         parser.error("invalid overload-test parameters")
     args.vus = 1
@@ -210,6 +217,8 @@ def main() -> int:
     ]
     benchmark.ARTIFACTS.mkdir(parents=True, exist_ok=True)
     benchmark.prepare_cpp_configs(args.cores)
+    if args.max_map_count:
+        benchmark.raise_max_map_count(args.max_map_count)
     if not args.skip_build:
         for language in selected:
             benchmark.build(language, benchmark.environment(args, language))

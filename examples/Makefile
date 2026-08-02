@@ -9,37 +9,42 @@ MAX_RATE ?= 100000
 MAX_P95_MS ?= 100
 LOADGEN_CORES ?= 8
 RATE ?= 50000
+MAX_MAP_COUNT ?= 1048576
 
 .PHONY: run quick capacity capacity-quick overload overload-quick build clean help
 
 run: ## Build and benchmark all four language examples
 	$(PYTHON) run.py --cores $(CORES) --vus $(VUS) \
-		--duration $(DURATION) --warmup $(WARMUP) --runs $(RUNS)
+		--duration $(DURATION) --warmup $(WARMUP) --runs $(RUNS) \
+		--max-map-count $(MAX_MAP_COUNT)
 
 quick: ## Reuse current images and run one short measurement
 	$(PYTHON) run.py --skip-build --cores $(CORES) --vus $(VUS) \
-		--duration 5s --warmup 2s --runs 1
+		--duration 5s --warmup 2s --runs 1 --max-map-count $(MAX_MAP_COUNT)
 
 capacity: ## Find maximum sustainable RPS using an arrival-rate sweep
 	$(PYTHON) capacity.py --cores $(CORES) \
 		--loadgen-cores $(LOADGEN_CORES) --start-rate $(START_RATE) \
-		--max-rate $(MAX_RATE) --max-p95-ms $(MAX_P95_MS)
+		--max-rate $(MAX_RATE) --max-p95-ms $(MAX_P95_MS) \
+		--max-map-count $(MAX_MAP_COUNT)
 
 capacity-quick: ## Smoke-test capacity search using existing images
 	$(PYTHON) capacity.py --skip-build --cores $(CORES) \
 		--loadgen-cores $(LOADGEN_CORES) --start-rate $(START_RATE) \
 		--max-rate $(MAX_RATE) --max-p95-ms $(MAX_P95_MS) \
-		--duration 3s --warmup 1s --confirm-runs 1 --resolution 0.15
+		--duration 3s --warmup 1s --confirm-runs 1 --resolution 0.15 \
+		--max-map-count $(MAX_MAP_COUNT)
 
 overload: ## Compare p99 latency at the same fixed arrival rate
 	$(PYTHON) overload.py --cores $(CORES) \
 		--loadgen-cores $(LOADGEN_CORES) --rate $(RATE) \
-		--duration $(DURATION) --warmup $(WARMUP) --runs $(RUNS)
+		--duration $(DURATION) --warmup $(WARMUP) --runs $(RUNS) \
+		--max-map-count $(MAX_MAP_COUNT)
 
 overload-quick: ## Smoke-test overload comparison using existing images
 	$(PYTHON) overload.py --skip-build --cores $(CORES) \
 		--loadgen-cores $(LOADGEN_CORES) --rate $(RATE) \
-		--duration 3s --warmup 1s --runs 1
+		--duration 3s --warmup 1s --runs 1 --max-map-count $(MAX_MAP_COUNT)
 
 build: ## Build release images/binaries without running load
 	$(PYTHON) run.py --build-only

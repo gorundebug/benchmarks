@@ -198,6 +198,25 @@ def prepare_cpp_configs(service_cores: int) -> None:
         (output / f"{service}.config_vars.yaml").write_text(text)
 
 
+def raise_max_map_count(value: int) -> None:
+    """vm.max_map_count is a global, non-namespaced host sysctl -- Docker
+    does not allow setting it per-container (`--sysctl vm.max_map_count=...`
+    is rejected outright). userver mmaps a stack per coroutine, and this
+    example's pipeline fans out into far more coroutines than VUs (e.g.
+    ~130k coroutines observed at VUS=512), so high-concurrency runs can
+    exhaust the default host limit and make every request fail with
+    "Failed to allocate a coroutine (ENOMEM)". Raise it once via a
+    throwaway --privileged container before the benchmark starts; this
+    persists host/VM-wide across all subsequent containers."""
+    subprocess.run(
+        [
+            "docker", "run", "--rm", "--privileged", "debian:bookworm-slim",
+            "sh", "-c", f"echo {value} > /proc/sys/vm/max_map_count",
+        ],
+        check=True,
+    )
+
+
 def wait_for_service(
     language: Language, service: str, url: str, env: dict[str, str]
 ) -> None:
@@ -460,6 +479,12 @@ def main() -> int:
     parser.add_argument("--warmup", default="5s")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--max-error-rate", type=float, default=0.001)
+    parser.add_argument(
+        "--max-map-count",
+        type=int,
+        default=1_048_576,
+        help="vm.max_map_count to set host/VM-wide before running (0 to leave it untouched)",
+    )
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--build-only", action="store_true")
     parser.add_argument("--clean", action="store_true")
@@ -477,6 +502,8 @@ def main() -> int:
         parser.error("CPU core counts must be positive integers")
     if args.vus <= 0 or args.runs <= 0:
         parser.error("VUs and runs must be positive integers")
+    if args.max_map_count < 0:
+        parser.error("--max-map-count must not be negative")
 
     selected = [
         language
@@ -485,6 +512,8 @@ def main() -> int:
     ]
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     prepare_cpp_configs(args.cores)
+    if args.max_map_count:
+        raise_max_map_count(args.max_map_count)
 
     if not args.skip_build:
         for language in selected:
