@@ -118,6 +118,29 @@ def build(language: Language, env: dict[str, str]) -> None:
         )
 
 
+# userver splits work across several independently-pooled task processors,
+# unlike Go's single GOMAXPROCS-sized scheduler. Setting every pool's
+# worker_threads to `cores` (as before) oversubscribes the cgroup CPU quota
+# 3x over (main + fs + grpc-blocking, each sized at `cores`). For parity with
+# Go: only main-task-processor (the CPU-bound pool that actually runs request
+# handling fibers) gets `cores` threads, matching GOMAXPROCS exactly. The
+# blocking/I/O-only pools (fs-task-processor, grpc-blocking-task-processor,
+# and the gRPC server's completion queues) get a minimal fixed size, the same
+# role Go's runtime fills with extra OS threads for blocking syscalls that
+# don't count against GOMAXPROCS.
+AUX_TASK_PROCESSOR_THREADS = 1
+
+
+def _set_worker_threads(static_config: str, processor: str, threads: int) -> str:
+    pattern = re.compile(rf"(?m)^(\s*{re.escape(processor)}:\n\s+worker_threads:)\s+\d+\s*$")
+    new_config, count = pattern.subn(rf"\1 {threads}", static_config)
+    if count != 1:
+        raise RuntimeError(
+            f"expected exactly one worker_threads under {processor}, found {count}"
+        )
+    return new_config
+
+
 def prepare_cpp_configs(service_cores: int) -> None:
     output = ARTIFACTS / "cpp-config"
     output.mkdir(parents=True, exist_ok=True)
@@ -135,22 +158,18 @@ def prepare_cpp_configs(service_cores: int) -> None:
             "        tracing: otlp", "        tracing: default"
         )
         static_config = static_config.replace("level: info", "level: warning")
-        static_config, worker_threads_count = re.subn(
-            r"(?m)^(\s+worker_threads:)\s+\d+\s*$",
-            rf"\1 {service_cores}",
-            static_config,
+        static_config = _set_worker_threads(static_config, "main-task-processor", service_cores)
+        static_config = _set_worker_threads(
+            static_config, "fs-task-processor", AUX_TASK_PROCESSOR_THREADS
+        )
+        static_config = _set_worker_threads(
+            static_config, "grpc-blocking-task-processor", AUX_TASK_PROCESSOR_THREADS
         )
         static_config, completion_queue_count = re.subn(
             r"(?m)^(\s+completion-queue-count:)\s+\d+\s*$",
-            rf"\1 {service_cores}",
+            rf"\1 {AUX_TASK_PROCESSOR_THREADS}",
             static_config,
         )
-        expected_worker_threads = 3
-        if worker_threads_count != expected_worker_threads:
-            raise RuntimeError(
-                f"{service} must define exactly {expected_worker_threads} "
-                f"task-processor worker counts, found {worker_threads_count}"
-            )
         expected_completion_queues = 1 if "grpc-server:" in static_config else 0
         if completion_queue_count != expected_completion_queues:
             raise RuntimeError(
