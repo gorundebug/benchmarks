@@ -14,12 +14,12 @@ MAX_MAP_COUNT ?= 1048576
 .PHONY: run quick capacity capacity-quick overload overload-quick build clean help
 
 run: ## Build and benchmark all four language examples
-	$(PYTHON) run.py --cores $(CORES) --vus $(VUS) \
+	$(PYTHON) run.py --cores $(CORES) --loadgen-cores $(LOADGEN_CORES) --vus $(VUS) \
 		--duration $(DURATION) --warmup $(WARMUP) --runs $(RUNS) \
 		--max-map-count $(MAX_MAP_COUNT)
 
 quick: ## Reuse current images and run one short measurement
-	$(PYTHON) run.py --skip-build --cores $(CORES) --vus $(VUS) \
+	$(PYTHON) run.py --skip-build --cores $(CORES) --loadgen-cores $(LOADGEN_CORES) --vus $(VUS) \
 		--duration 5s --warmup 2s --runs 1 --max-map-count $(MAX_MAP_COUNT)
 
 capacity: ## Find maximum sustainable RPS using an arrival-rate sweep
