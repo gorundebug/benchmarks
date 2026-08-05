@@ -2,6 +2,9 @@ import http from "k6/http";
 import { check } from "k6";
 
 const duration = __ENV.BENCHMARK_DURATION || "20s";
+const durationSeconds = Number.parseFloat(
+  __ENV.BENCHMARK_DURATION_SECONDS || "20",
+);
 const resultFile = __ENV.BENCHMARK_RESULT_FILE || "/results/k6.json";
 const target = __ENV.BENCHMARK_TARGET ||
   "http://orderservice:9091/v1/processorder";
@@ -85,7 +88,12 @@ export function handleSummary(data) {
     mode,
     target_rate: targetRate,
     request_count: requests.count || 0,
-    requests_per_second: requests.rate || 0,
+    // k6's built-in rate includes time spent waiting for iterations during
+    // gracefulStop. That makes a single late request under-report throughput
+    // for the fixed measurement window. Count only the configured duration.
+    requests_per_second: durationSeconds > 0
+      ? (requests.count || 0) / durationSeconds
+      : 0,
     iteration_count: iterations.count || 0,
     dropped_iterations: dropped.count || 0,
     dropped_rate: scheduledIterations > 0

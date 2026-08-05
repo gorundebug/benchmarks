@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import platform
-import re
 import statistics
 import subprocess
 import sys
@@ -18,14 +17,6 @@ import run as benchmark
 
 def median(values: list[float | int]) -> float:
     return float(statistics.median(values))
-
-
-def duration_seconds(value: str) -> float:
-    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)(ms|s|m|h)", value)
-    if match is None:
-        raise ValueError(f"unsupported duration: {value}")
-    amount = float(match.group(1))
-    return amount * {"ms": 0.001, "s": 1, "m": 60, "h": 3600}[match.group(2)]
 
 
 def run_once(
@@ -86,7 +77,7 @@ def aggregate(
     runs: list[dict[str, Any]],
     args: argparse.Namespace,
 ) -> dict[str, Any]:
-    expected_requests = args.rate * duration_seconds(args.duration)
+    expected_requests = args.rate * benchmark.duration_seconds(args.duration)
     completed_ratio = median(
         [result["request_count"] / expected_requests for result in runs]
     )

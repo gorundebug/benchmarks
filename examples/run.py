@@ -41,6 +41,14 @@ LANGUAGES = (
 )
 
 
+def duration_seconds(value: str) -> float:
+    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)(ms|s|m|h)", value)
+    if match is None:
+        raise ValueError(f"unsupported duration: {value}")
+    amount = float(match.group(1))
+    return amount * {"ms": 0.001, "s": 1, "m": 60, "h": 3600}[match.group(2)]
+
+
 def run(
     command: list[str],
     *,
@@ -86,6 +94,7 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
             "BENCHMARK_CPP_CONFIG_DIR": str(ARTIFACTS / "cpp-config"),
             "BENCHMARK_DIR": str(BENCHMARK_DIR),
             "BENCHMARK_DURATION": args.duration,
+            "BENCHMARK_DURATION_SECONDS": str(duration_seconds(args.duration)),
             "BENCHMARK_LOADGEN_CORES": str(args.loadgen_cores),
             "BENCHMARK_RESULT_FILE": "/results/result.json",
             "BENCHMARK_RESULT_HOST_FILE": str(ARTIFACTS / "unused.json"),
@@ -302,6 +311,7 @@ def load(
     load_env = {
         **env,
         "BENCHMARK_DURATION": duration,
+        "BENCHMARK_DURATION_SECONDS": str(duration_seconds(duration)),
         "BENCHMARK_RESULT_FILE": "/results/result.json",
         "BENCHMARK_RESULT_HOST_FILE": str(result_path),
     }
