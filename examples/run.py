@@ -108,6 +108,8 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
         env["USERVER_LTO"] = "ON"
     elif language.name == "python":
         env["PYSERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "pyservicelib")
+    elif language.name == "rust":
+        env["RUSTSERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "rustservicelib")
     return env
 
 
@@ -201,11 +203,17 @@ def prepare_cpp_configs(service_cores: int) -> None:
             f"{prefix}HttpHost": "0.0.0.0",
             f"{prefix}HttpPort": port,
             f"{prefix}OtlpEndpoint": "disabled:4317",
+            "inventoryServiceApiConnectionsCount": service_cores,
         }
         if service == "inventoryservice":
             values["inventoryServiceApiAddress"] = "dns:///inventoryservice:9202"
+            values["inventoryPriorityWorkersExecutorsCount"] = service_cores
+            values["inventoryServiceDefaultGrpcTimeout"] = 0
         else:
             values["inventoryServiceApiAddress"] = "dns:///inventoryservice:9202"
+            values["defaultPoolExecutorsCount"] = service_cores
+            values["orderServiceDefaultGrpcTimeout"] = 5000
+            values["softDeadlineDuration"] = 1000
         text = "".join(
             f"{key}: {json.dumps(value) if isinstance(value, str) else value}\n"
             for key, value in values.items()
