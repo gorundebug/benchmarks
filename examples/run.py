@@ -247,6 +247,48 @@ def wait_for_service(
     raise RuntimeError(f"{language.name} {service} did not become ready: {last_error}")
 
 
+def prometheus_metric_values(text: str, name: str) -> list[float]:
+    pattern = re.compile(
+        rf"(?m)^{re.escape(name)}(?:\{{[^}}]*\}})?\s+"
+        r"([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*$"
+    )
+    return [float(match) for match in pattern.findall(text)]
+
+
+def verify_pool_size(
+    language: Language,
+    service: str,
+    port: int,
+    metric: str,
+    expected: int,
+) -> None:
+    url = f"http://localhost:{port}/metrics"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            metrics = response.read().decode("utf-8")
+    except (OSError, UnicodeError, urllib.error.URLError) as error:
+        raise RuntimeError(
+            f"cannot verify {language.name} {service} pool size from {url}: {error}"
+        ) from error
+
+    values = prometheus_metric_values(metrics, metric)
+    if not values:
+        raise RuntimeError(
+            f"{language.name} {service} does not expose {metric}; "
+            "the reused image is probably stale, run `make run` or `make build` first"
+        )
+    unexpected = [value for value in values if value != expected]
+    if unexpected:
+        raise RuntimeError(
+            f"{language.name} {service} effective pool size is {values}, "
+            f"expected {expected} from CORES"
+        )
+    print(
+        f"Verified {language.name} {service}: {metric}={expected}",
+        flush=True,
+    )
+
+
 def load(
     language: Language,
     env: dict[str, str],
@@ -299,6 +341,13 @@ def benchmark_language(
             "http://localhost:9092/status/data",
             env,
         )
+        verify_pool_size(
+            language,
+            "inventoryservice",
+            9092,
+            "priority_task_pool_executors_target",
+            args.cores,
+        )
         run(
             compose_command(language, "up", "--detach", "--no-deps", "orderservice"),
             cwd=language.example,
@@ -309,6 +358,13 @@ def benchmark_language(
             "orderservice",
             "http://localhost:9091/status/data",
             env,
+        )
+        verify_pool_size(
+            language,
+            "orderservice",
+            9091,
+            "priority_task_pool_executors_target",
+            args.cores,
         )
 
         if args.warmup != "0" and args.warmup != "0s":

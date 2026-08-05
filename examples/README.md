@@ -71,6 +71,11 @@ A short smoke benchmark is available as:
 make quick CORES=1 VUS=8
 ```
 
+Before applying load, the runner reads each service's Prometheus metrics and
+verifies that both effective priority task-pool sizes equal `CORES`. This also
+makes `quick` fail with a clear stale-image message when reused images do not
+contain the generated environment-variable support.
+
 ## Find maximum sustainable throughput
 
 The fixed-VU benchmark above measures achieved throughput at a chosen
