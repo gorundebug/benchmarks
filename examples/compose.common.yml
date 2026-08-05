@@ -27,7 +27,7 @@ services:
       BENCHMARK_VUS: ${BENCHMARK_VUS}
     volumes:
       - ${BENCHMARK_DIR}/load.js:/scripts/load.js:ro
-      - ${BENCHMARK_ARTIFACTS_DIR}:/results
+      - ${BENCHMARK_RESULT_HOST_FILE}:/results/result.json
     networks:
       - app_net
     entrypoint: [k6]

@@ -87,7 +87,8 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
             "BENCHMARK_DIR": str(BENCHMARK_DIR),
             "BENCHMARK_DURATION": args.duration,
             "BENCHMARK_LOADGEN_CORES": str(args.loadgen_cores),
-            "BENCHMARK_RESULT_FILE": "/results/unused.json",
+            "BENCHMARK_RESULT_FILE": "/results/result.json",
+            "BENCHMARK_RESULT_HOST_FILE": str(ARTIFACTS / "unused.json"),
             "BENCHMARK_SERVICE_CORES": str(args.cores),
             "BENCHMARK_VUS": str(args.vus),
         }
@@ -253,12 +254,14 @@ def load(
     duration: str,
     result_name: str,
 ) -> dict[str, Any]:
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     result_path = ARTIFACTS / result_name
-    result_path.unlink(missing_ok=True)
+    result_path.write_text("")
     load_env = {
         **env,
         "BENCHMARK_DURATION": duration,
-        "BENCHMARK_RESULT_FILE": f"/results/{result_name}",
+        "BENCHMARK_RESULT_FILE": "/results/result.json",
+        "BENCHMARK_RESULT_HOST_FILE": str(result_path),
     }
     run(
         compose_command(
@@ -273,8 +276,8 @@ def load(
         cwd=language.example,
         env=load_env,
     )
-    if not result_path.exists():
-        raise RuntimeError(f"k6 did not create {result_path}")
+    if not result_path.exists() or result_path.stat().st_size == 0:
+        raise RuntimeError(f"k6 did not write {result_path}")
     return json.loads(result_path.read_text())
 
 
