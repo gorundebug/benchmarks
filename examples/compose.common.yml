@@ -1,12 +1,18 @@
 services:
   inventoryservice:
     cpus: ${BENCHMARK_SERVICE_CORES}
+    environment:
+      DEFAULT_POOL_EXECUTORS_COUNT: ${BENCHMARK_SERVICE_CORES}
+      INVENTORY_PRIORITY_WORKERS_EXECUTORS_COUNT: ${BENCHMARK_SERVICE_CORES}
     ports: !override
       - "9092:9092"
     restart: "no"
 
   orderservice:
     cpus: ${BENCHMARK_SERVICE_CORES}
+    environment:
+      DEFAULT_POOL_EXECUTORS_COUNT: ${BENCHMARK_SERVICE_CORES}
+      INVENTORY_PRIORITY_WORKERS_EXECUTORS_COUNT: ${BENCHMARK_SERVICE_CORES}
     ports: !override
       - "9091:9091"
     restart: "no"

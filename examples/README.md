@@ -14,8 +14,9 @@ less likely to be mistaken for a server limit.
 - OTLP export is disabled and k6 sends neither `X-Trace` nor a sampled remote
   trace context, so framework spans are not created; metrics remain active;
 - per-request access logging is disabled for every runtime;
-- Go `GOMAXPROCS`, C++ main task-processor workers and Rust Tokio workers are
-  set to the requested service core count (Python remains a single event loop);
+- Go `GOMAXPROCS`, C++ main task-processor workers, Rust Tokio workers and all
+  generated ServiceLib task pools are set to the requested service core count
+  (Python remains a single event loop outside its ServiceLib task pools);
 - Inventory Service starts before Order Service;
 - every language receives the same JSON request, warm-up, VU count, duration,
   repetitions and per-service CPU quota;
