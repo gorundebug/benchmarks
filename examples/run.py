@@ -300,6 +300,47 @@ def prometheus_metric_values(text: str, name: str) -> list[float]:
     return [float(match) for match in pattern.findall(text)]
 
 
+def service_uses_priority_task_pool(language: Language, service: str) -> bool:
+    graph_path = (
+        language.example / service / "graph" / f"{service}.generated.yaml"
+    )
+    try:
+        graph = graph_path.read_text()
+    except OSError as error:
+        raise RuntimeError(
+            f"cannot determine {language.name} {service} call semantics: "
+            f"failed to read {graph_path}: {error}"
+        ) from error
+    return (
+        re.search(r"(?m)^\s*callSemantics:\s*PriorityTaskPool\s*$", graph)
+        is not None
+    )
+
+
+def verify_configured_pool_size(
+    language: Language,
+    service: str,
+    port: int,
+    expected: int,
+) -> None:
+    if not language.verify_framework_pool:
+        return
+    if not service_uses_priority_task_pool(language, service):
+        print(
+            f"Skipping {language.name} {service} priority task-pool check: "
+            "the generated graph does not use PriorityTaskPool",
+            flush=True,
+        )
+        return
+    verify_pool_size(
+        language,
+        service,
+        port,
+        "priority_task_pool_executors_target",
+        expected,
+    )
+
+
 def verify_pool_size(
     language: Language,
     service: str,
@@ -387,14 +428,12 @@ def benchmark_language(
             "http://localhost:9092/status/data",
             env,
         )
-        if language.verify_framework_pool:
-            verify_pool_size(
-                language,
-                "inventoryservice",
-                9092,
-                "priority_task_pool_executors_target",
-                args.cores,
-            )
+        verify_configured_pool_size(
+            language,
+            "inventoryservice",
+            9092,
+            args.cores,
+        )
         run(
             compose_command(language, "up", "--detach", "--no-deps", "orderservice"),
             cwd=language.example,
@@ -406,14 +445,12 @@ def benchmark_language(
             "http://localhost:9091/status/data",
             env,
         )
-        if language.verify_framework_pool:
-            verify_pool_size(
-                language,
-                "orderservice",
-                9091,
-                "priority_task_pool_executors_target",
-                args.cores,
-            )
+        verify_configured_pool_size(
+            language,
+            "orderservice",
+            9091,
+            args.cores,
+        )
 
         if args.warmup != "0" and args.warmup != "0s":
             load(

@@ -83,10 +83,11 @@ A short smoke benchmark is available as:
 make quick CORES=1 VUS=8
 ```
 
-Before applying load, the runner reads each framework-backed service's
-Prometheus metrics and verifies that both effective priority task-pool sizes
-equal `CORES`. This check does not apply to any `*-native` variant, which has no
-ServiceLib task pool. The native comparison therefore measures the end-to-end
+Before applying load, the runner checks each generated service graph. When it
+uses `PriorityTaskPool`, the runner reads the framework's Prometheus metrics and
+verifies that the effective priority task-pool size equals `CORES`. This check
+is skipped automatically for `FunctionCall`-only graphs and for every
+`*-native` variant. The native comparison therefore measures the end-to-end
 framework cost, including framework metrics and runtime facilities, rather than
 only operator dispatch.
 
