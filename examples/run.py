@@ -535,14 +535,15 @@ def write_results(results: list[dict[str, Any]], args: argparse.Namespace) -> No
         writer.writerows(rows)
 
     header = (
-        "| Language | Cores/service | VUs | Runs | Requests/s | "
+        "| Language | Cores/service | Cores/loadgen | VUs | Runs | Requests/s | "
         "Errors | Avg ms | p50 ms | p95 ms | p99 ms | Max ms |\n"
     )
-    separator = "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n"
+    separator = "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n"
     table_rows = []
     for row in rows:
         table_rows.append(
-            f"| {row['language']} | {row['service_cores']} | {row['vus']} | "
+            f"| {row['language']} | {row['service_cores']} | "
+            f"{row['loadgen_cores']} | {row['vus']} | "
             f"{row['runs']} | {row['requests_per_second']:.2f} | "
             f"{row['error_rate_percent']:.4f}% | {row['latency_avg_ms']:.3f} | "
             f"{row['latency_p50_ms']:.3f} | {row['latency_p95_ms']:.3f} | "
@@ -585,7 +586,7 @@ def main() -> int:
         description="Benchmark equivalent ServiceLib and native framework baselines"
     )
     parser.add_argument("--cores", type=int, default=2)
-    parser.add_argument("--loadgen-cores", type=int, default=2)
+    parser.add_argument("--loadgen-cores", type=int, default=8)
     parser.add_argument("--vus", type=int, default=32)
     parser.add_argument("--duration", default="20s")
     parser.add_argument("--warmup", default="5s")
