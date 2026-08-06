@@ -207,9 +207,11 @@ def main() -> int:
         if not args.language or language.name in args.language
     ]
     benchmark.ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    benchmark.prepare_cpp_configs(args.cores)
-    if args.max_map_count:
-        benchmark.raise_max_map_count(args.max_map_count)
+    cpp_selected = any(language.name == "cpp" for language in selected)
+    if cpp_selected:
+        benchmark.prepare_cpp_configs(args.cores)
+        if args.max_map_count:
+            benchmark.raise_max_map_count(args.max_map_count)
     if not args.skip_build:
         for language in selected:
             benchmark.build(language, benchmark.environment(args, language))

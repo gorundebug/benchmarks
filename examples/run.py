@@ -31,10 +31,17 @@ class Language:
     name: str
     example: Path
     overlay: Path
+    verify_framework_pool: bool = True
 
 
 LANGUAGES = (
     Language("go", ROOT / "goexample", BENCHMARK_DIR / "compose.go.yml"),
+    Language(
+        "go-native",
+        ROOT / "gonativeexample",
+        BENCHMARK_DIR / "compose.go-native.yml",
+        verify_framework_pool=False,
+    ),
     Language("cpp", ROOT / "cppexample", BENCHMARK_DIR / "compose.cpp.yml"),
     Language("python", ROOT / "pyexample", BENCHMARK_DIR / "compose.python.yml"),
     Language("rust", ROOT / "rustexample", BENCHMARK_DIR / "compose.rust.yml"),
@@ -359,13 +366,14 @@ def benchmark_language(
             "http://localhost:9092/status/data",
             env,
         )
-        verify_pool_size(
-            language,
-            "inventoryservice",
-            9092,
-            "priority_task_pool_executors_target",
-            args.cores,
-        )
+        if language.verify_framework_pool:
+            verify_pool_size(
+                language,
+                "inventoryservice",
+                9092,
+                "priority_task_pool_executors_target",
+                args.cores,
+            )
         run(
             compose_command(language, "up", "--detach", "--no-deps", "orderservice"),
             cwd=language.example,
@@ -377,13 +385,14 @@ def benchmark_language(
             "http://localhost:9091/status/data",
             env,
         )
-        verify_pool_size(
-            language,
-            "orderservice",
-            9091,
-            "priority_task_pool_executors_target",
-            args.cores,
-        )
+        if language.verify_framework_pool:
+            verify_pool_size(
+                language,
+                "orderservice",
+                9091,
+                "priority_task_pool_executors_target",
+                args.cores,
+            )
 
         if args.warmup != "0" and args.warmup != "0s":
             load(
@@ -552,7 +561,7 @@ def clean() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Benchmark equivalent ServiceLib examples in four languages"
+        description="Benchmark equivalent ServiceLib examples and the Go native baseline"
     )
     parser.add_argument("--cores", type=int, default=2)
     parser.add_argument("--loadgen-cores", type=int, default=2)
@@ -593,9 +602,11 @@ def main() -> int:
         if not args.language or language.name in args.language
     ]
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    prepare_cpp_configs(args.cores)
-    if args.max_map_count:
-        raise_max_map_count(args.max_map_count)
+    cpp_selected = any(language.name == "cpp" for language in selected)
+    if cpp_selected:
+        prepare_cpp_configs(args.cores)
+        if args.max_map_count:
+            raise_max_map_count(args.max_map_count)
 
     if not args.skip_build:
         for language in selected:

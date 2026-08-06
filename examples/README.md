@@ -1,7 +1,8 @@
 # Cross-language example benchmark
 
-This project measures the same generated Order Service → Inventory Service
-request path in the Go, C++, Python and Rust examples.
+This project measures the same Order Service → Inventory Service request path
+in the generated Go, C++, Python and Rust examples, plus a hand-written
+`go-native` baseline that does not use ServiceLib.
 
 Each language is measured separately. Both service containers receive the same
 CPU quota and the k6 load generator has its own quota, so lack of client CPU is
@@ -9,12 +10,12 @@ less likely to be mistaken for a server limit.
 
 ## Reproducibility contract
 
-- production/release compiler settings are used: normal optimized Go build,
+- production/release compiler settings are used: normal optimized Go builds,
   C++ `Release` with userver LTO, Python `-OO`, and Cargo `--release`;
 - OTLP export is disabled and k6 sends neither `X-Trace` nor a sampled remote
   trace context, so framework spans are not created; metrics remain active;
 - per-request access logging is disabled for every runtime;
-- Go `GOMAXPROCS`, C++ main task-processor workers, Rust Tokio workers and all
+- Go and Go-native `GOMAXPROCS`, C++ main task-processor workers, Rust Tokio workers and all
   generated ServiceLib task pools are set to the requested service core count
   (Python remains a single event loop outside its ServiceLib task pools);
 - Inventory Service starts before Order Service;
@@ -59,6 +60,12 @@ Run one language while tuning:
 python3 run.py --language cpp --cores 4 --vus 64
 ```
 
+Compare only the framework-backed and hand-written Go implementations:
+
+```bash
+python3 run.py --language go --language go-native --cores 4 --vus 64
+```
+
 Reuse already built release images:
 
 ```bash
@@ -71,10 +78,12 @@ A short smoke benchmark is available as:
 make quick CORES=1 VUS=8
 ```
 
-Before applying load, the runner reads each service's Prometheus metrics and
-verifies that both effective priority task-pool sizes equal `CORES`. This also
-makes `quick` fail with a clear stale-image message when reused images do not
-contain the generated environment-variable support.
+Before applying load, the runner reads each framework-backed service's
+Prometheus metrics and verifies that both effective priority task-pool sizes
+equal `CORES`. This check does not apply to `go-native`, which has no ServiceLib
+task pool. The native comparison therefore measures the end-to-end framework
+cost, including framework metrics and runtime facilities, rather than only
+operator dispatch.
 
 ## Find maximum sustainable throughput
 
