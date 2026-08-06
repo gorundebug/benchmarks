@@ -10,7 +10,6 @@ services:
       - --overrides
       - /workspace/inventoryservice/config/docker_overrides.yaml
     environment:
-      PYTHONASYNCIODEBUG: "0"
       PYTHONHASHSEED: "0"
       PYTHONOPTIMIZE: "2"
     volumes:
@@ -27,7 +26,6 @@ services:
       - --overrides
       - /workspace/orderservice/config/docker_overrides.yaml
     environment:
-      PYTHONASYNCIODEBUG: "0"
       PYTHONHASHSEED: "0"
       PYTHONOPTIMIZE: "2"
     volumes:
