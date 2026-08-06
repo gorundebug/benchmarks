@@ -43,8 +43,26 @@ LANGUAGES = (
         verify_framework_pool=False,
     ),
     Language("cpp", ROOT / "cppexample", BENCHMARK_DIR / "compose.cpp.yml"),
+    Language(
+        "cpp-native",
+        ROOT / "cppnativeexample",
+        BENCHMARK_DIR / "compose.cpp-native.yml",
+        verify_framework_pool=False,
+    ),
     Language("python", ROOT / "pyexample", BENCHMARK_DIR / "compose.python.yml"),
+    Language(
+        "python-native",
+        ROOT / "pynativeexample",
+        BENCHMARK_DIR / "compose.python-native.yml",
+        verify_framework_pool=False,
+    ),
     Language("rust", ROOT / "rustexample", BENCHMARK_DIR / "compose.rust.yml"),
+    Language(
+        "rust-native",
+        ROOT / "rustnativeexample",
+        BENCHMARK_DIR / "compose.rust-native.yml",
+        verify_framework_pool=False,
+    ),
 )
 
 
@@ -112,6 +130,9 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
     if language.name == "cpp":
         env["COMPOSE_PROJECT_NAME"] = "cppexample"
         env["SERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "cppservicelib")
+        env["USERVER_LTO"] = "ON"
+    elif language.name == "cpp-native":
+        env["USERVER_SOURCE_CONTEXT"] = str(ROOT / "userver")
         env["USERVER_LTO"] = "ON"
     elif language.name == "python":
         env["PYSERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "pyservicelib")
@@ -528,7 +549,7 @@ def write_results(results: list[dict[str, Any]], args: argparse.Namespace) -> No
             f"{row['latency_p99_ms']:.3f} | {row['latency_max_ms']:.3f} |"
         )
     (ARTIFACTS / "results.md").write_text(
-        "# ServiceLib example benchmark\n\n"
+        "# Framework example benchmark\n\n"
         f"- Scenario: `process_order_out_of_stock`\n"
         f"- Service CPU quota: `{args.cores}` cores per container\n"
         f"- Load generator CPU quota: `{args.loadgen_cores}` cores\n"
@@ -561,7 +582,7 @@ def clean() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Benchmark equivalent ServiceLib examples and the Go native baseline"
+        description="Benchmark equivalent ServiceLib and native framework baselines"
     )
     parser.add_argument("--cores", type=int, default=2)
     parser.add_argument("--loadgen-cores", type=int, default=2)
@@ -602,9 +623,12 @@ def main() -> int:
         if not args.language or language.name in args.language
     ]
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    cpp_selected = any(language.name == "cpp" for language in selected)
+    cpp_selected = any(
+        language.name in ("cpp", "cpp-native") for language in selected
+    )
     if cpp_selected:
-        prepare_cpp_configs(args.cores)
+        if any(language.name == "cpp" for language in selected):
+            prepare_cpp_configs(args.cores)
         if args.max_map_count:
             raise_max_map_count(args.max_map_count)
 

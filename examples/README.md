@@ -1,8 +1,8 @@
 # Cross-language example benchmark
 
 This project measures the same Order Service → Inventory Service request path
-in the generated Go, C++, Python and Rust examples, plus a hand-written
-`go-native` baseline that does not use ServiceLib.
+in the generated Go, C++, Python and Rust examples, plus hand-written native
+baselines for every language that do not use ServiceLib.
 
 Each language is measured separately. Both service containers receive the same
 CPU quota and the k6 load generator has its own quota, so lack of client CPU is
@@ -66,6 +66,11 @@ Compare only the framework-backed and hand-written Go implementations:
 python3 run.py --language go --language go-native --cores 4 --vus 64
 ```
 
+The equivalent pairs are `cpp`/`cpp-native`, `python`/`python-native` and
+`rust`/`rust-native`. C++ native uses userver directly, preserving the runtime
+under the generated ServiceLib implementation; Python native uses aiohttp and
+grpc.aio; Rust native uses Axum and Tonic.
+
 Reuse already built release images:
 
 ```bash
@@ -80,10 +85,10 @@ make quick CORES=1 VUS=8
 
 Before applying load, the runner reads each framework-backed service's
 Prometheus metrics and verifies that both effective priority task-pool sizes
-equal `CORES`. This check does not apply to `go-native`, which has no ServiceLib
-task pool. The native comparison therefore measures the end-to-end framework
-cost, including framework metrics and runtime facilities, rather than only
-operator dispatch.
+equal `CORES`. This check does not apply to any `*-native` variant, which has no
+ServiceLib task pool. The native comparison therefore measures the end-to-end
+framework cost, including framework metrics and runtime facilities, rather than
+only operator dispatch.
 
 ## Find maximum sustainable throughput
 

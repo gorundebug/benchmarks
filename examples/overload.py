@@ -148,7 +148,7 @@ def write_results(
             f"{result['error_rate'] * 100:.3f}% |"
         )
     markdown = (
-        "# ServiceLib fixed overload comparison\n\n"
+        "# Fixed overload comparison\n\n"
         f"- Target arrival rate: `{args.rate} RPS`\n"
         f"- Service CPU quota: `{args.cores}` cores per service container\n"
         f"- Load generator CPU quota: `{args.loadgen_cores}` cores\n"
@@ -207,9 +207,12 @@ def main() -> int:
         if not args.language or language.name in args.language
     ]
     benchmark.ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    cpp_selected = any(language.name == "cpp" for language in selected)
+    cpp_selected = any(
+        language.name in ("cpp", "cpp-native") for language in selected
+    )
     if cpp_selected:
-        benchmark.prepare_cpp_configs(args.cores)
+        if any(language.name == "cpp" for language in selected):
+            benchmark.prepare_cpp_configs(args.cores)
         if args.max_map_count:
             benchmark.raise_max_map_count(args.max_map_count)
     if not args.skip_build:
