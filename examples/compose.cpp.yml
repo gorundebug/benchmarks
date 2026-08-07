@@ -1,0 +1,25 @@
+services:
+  inventoryservice:
+    command:
+      - /workspace/build/inventoryservice/example_inventory_service
+      - --config
+      - /benchmark-config/inventoryservice.static_config.yaml
+      - --config_vars
+      - /benchmark-config/inventoryservice.config_vars.yaml
+    volumes:
+      - ${BENCHMARK_CPP_CONFIG_DIR}:/benchmark-config:ro
+
+  orderservice:
+    command:
+      - /workspace/build/orderservice/example_order_service
+      - --config
+      - /benchmark-config/orderservice.static_config.yaml
+      - --config_vars
+      - /benchmark-config/orderservice.config_vars.yaml
+    volumes:
+      - ${BENCHMARK_CPP_CONFIG_DIR}:/benchmark-config:ro
+
+volumes:
+  cpp-cmake-build:
+    external: true
+    name: cppexample_cpp-cmake-build
