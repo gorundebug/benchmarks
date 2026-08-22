@@ -1,0 +1,8 @@
+syntax = "proto3";
+package inventoryserviceapi;
+
+import "processorderitem.proto";
+
+service InventoryServiceApi {
+  rpc ProcessOrderItem(processorderitem.ProcessOrderItemRequest) returns (processorderitem.ProcessOrderItemResponse) {}
+}
