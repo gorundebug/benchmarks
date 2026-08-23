@@ -82,7 +82,7 @@ LANGUAGES = (
         BENCHMARK_DIR / "compose.go-native.yml",
         verify_framework_pool=False,
         repository="https://github.com/gorundebug/gonativeexample.git",
-        revision="v0.2.12",
+        revision="v0.2.13",
     ),
     Language("cpp", ROOT / "cppexample", BENCHMARK_DIR / "compose.cpp.yml"),
     Language(
