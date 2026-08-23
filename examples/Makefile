@@ -23,7 +23,18 @@ LOADGEN_CORES ?= 6
 RATE ?= 50000
 MAX_MAP_COUNT ?= 0
 
-.PHONY: setup-native run quick call-semantics http-transport http-transport-quick http-json-reject http-json-reject-quick typescript-http-only typescript-http-only-quick grpc-only grpc-only-quick graph-without-grpc graph-without-grpc-quick typescript-kafka-disabled typescript-kafka-disabled-quick capacity overload overload-quick build clean help
+.PHONY: setup-native run quick call-semantics http-transport http-transport-quick http-json-reject http-json-reject-quick typescript-http-only typescript-http-only-quick grpc-only grpc-only-quick graph-without-grpc graph-without-grpc-quick typescript-kafka-disabled typescript-kafka-disabled-quick capacity overload overload-quick build clean help dependency-source-cache-invalidate
+
+dependency-source-cache-invalidate: ## Recreate fetched C++ source/CMake caches, preserving ccache and Nexus
+	@set -e; found=0; \
+	for project in "$(BENCHMARK_DEPENDENCIES_DIR)/cppexample" "$(BENCHMARK_DEPENDENCIES_DIR)/cppboostexample"; do \
+		if [ -f "$$project/make.generated.mk" ]; then \
+			found=1; $(MAKE) -C "$$project" dependency-source-cache-invalidate; \
+		fi; \
+	done; \
+	if [ "$$found" -eq 0 ]; then \
+		echo "[dependency-source-cache] no fetched C++ examples; nothing to invalidate"; \
+	fi
 
 setup-native: ## Fetch missing pinned native example projects
 	$(PYTHON) run.py --fetch-native --language go-native --language cpp-native \

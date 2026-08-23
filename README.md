@@ -70,5 +70,12 @@ The same directory can be used with direct Make invocations:
 make -C examples run BENCHMARK_DEPENDENCIES_DIR=/path/to/benchmark-repositories
 ```
 
+After changing a pinned C++ dependency version, discard prepared sources and
+CMake state while preserving ccache and Nexus data:
+
+```bash
+make -C examples dependency-source-cache-invalidate
+```
+
 See [examples/README.md](examples/README.md) for the reproducibility contract,
 benchmark modes and run instructions.
