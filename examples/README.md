@@ -202,6 +202,26 @@ for every `*-native` variant. Benchmark telemetry remains noop, so this
 verification does not enable Prometheus collection or add metrics overhead to
 the framework result.
 
+## Temporal and DurableCall performance
+
+Cron and Temporal remain disabled in the normal Order benchmark: it starts
+neither Automation Service nor the Temporal infrastructure and therefore pays
+no SDK, Worker, timer, or transport cost. The durable path is an explicit,
+separate benchmark for the three runtimes with production Temporal SDKs:
+
+```bash
+make durable CORES=2 DURABLE_JOBS=1000 DURABLE_WARMUP_JOBS=50 RUNS=3
+```
+
+It pauses the periodic Schedule, submits a deterministic Temporal backfill,
+and measures the complete path from accepted scheduled Workflow through the
+Temporal endpoint Activity, the existing graph, a `DurableCall` Activity, and
+the result boundary. Go, Python, and TypeScript run sequentially against fresh
+Temporal/PostgreSQL state. The attempt with the highest completed jobs/second
+is reported in `.artifacts/durable/results.{json,md}`. Native and unsupported
+C++/Rust Temporal variants are intentionally absent. Use `make durable-quick`
+to reuse current images for a ten-job smoke run.
+
 ## Increase load by virtual users
 
 The capacity scenario uses the same fixed-VU workload as the normal benchmark.
