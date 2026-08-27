@@ -11,6 +11,7 @@ set -euo pipefail
 #   ./quickstart.sh                # clone what's missing, then run with 256 VUs
 #   ./quickstart.sh --clone-only   # only fetch missing repositories, don't run
 #   ./quickstart.sh --dependencies-dir /path/to/repos
+#   ./quickstart.sh --skip-git-mirror-refresh  # trust cached Git revisions
 #   ./quickstart.sh -- call-semantics  # pooled generated graph performance
 #
 # Anything after the flags is forwarded to `make run` in benchmarks/examples,
@@ -25,10 +26,15 @@ MANAGED_DEPENDENCIES=1
 REPOS=(goexample cppexample cppboostexample pyexample rustexample tsexample servicelib cppservicelib cppboostservicelib pyservicelib rustservicelib tsservicelib servicegen)
 
 clone_only=0
+refresh_git_mirror=1
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --clone-only)
       clone_only=1
+      shift
+      ;;
+    --skip-git-mirror-refresh)
+      refresh_git_mirror=0
       shift
       ;;
     --dependencies-dir)
@@ -62,7 +68,7 @@ export BENCHMARK_UPDATE_MANAGED_DEPENDENCIES="$MANAGED_DEPENDENCIES"
 
 echo "==> Checking prerequisites"
 missing=0
-for tool in git docker python3; do
+for tool in git docker python3 curl; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "  missing: $tool" >&2
     missing=1
@@ -76,7 +82,25 @@ if [ "$missing" -ne 0 ]; then
   echo "Install the missing tools above and re-run." >&2
   exit 1
 fi
-echo "  git, docker, docker compose, python3: OK"
+echo "  git, docker, docker compose, python3, curl: OK"
+
+if [ -n "${SERVICEGEN_DEPENDENCY_PROXY_DIR:-}" ]; then
+  proxy_host="${SERVICEGEN_DEPENDENCY_PROXY_HOST:-localhost}"
+  git_mirror_port="${SERVICEGEN_GIT_MIRROR_PORT:-18084}"
+  bootstrap_git_mirror="http://$proxy_host:$git_mirror_port/cgi-bin/git"
+  export GIT_CONFIG_COUNT=2
+  export GIT_CONFIG_KEY_0="url.$bootstrap_git_mirror/github.com/.insteadOf"
+  export GIT_CONFIG_VALUE_0=https://github.com/
+  export GIT_CONFIG_KEY_1="url.$bootstrap_git_mirror/gitlab.com/.insteadOf"
+  export GIT_CONFIG_VALUE_1=https://gitlab.com/
+  if [ "$refresh_git_mirror" -eq 1 ]; then
+    echo "==> Refreshing every cached Git mirror before resolving revisions"
+    curl --fail --show-error --silent --request POST \
+      "$bootstrap_git_mirror/__servicegen_refresh"
+  else
+    echo "==> Trusting cached Git mirror revisions (--skip-git-mirror-refresh)"
+  fi
+fi
 
 echo "==> Preparing repositories in $DEPENDENCIES_DIR"
 for repo in "${REPOS[@]}"; do
@@ -112,6 +136,16 @@ if [ -n "${SERVICEGEN_DEPENDENCY_PROXY_DIR:-}" ]; then
   fi
   export SERVICEGEN_NEXUS_CLIENT_HOST="${SERVICEGEN_DEPENDENCY_PROXY_HOST:-localhost}"
   eval "$("$proxy_script" env)"
+  userver_revision="$(sed -nE \
+    's|.*userver\.git#([0-9a-f]+).*|\1|p' \
+    "$DEPENDENCIES_DIR/cppservicelib/docker-compose.cmake.yml" | head -n 1)"
+  if [ -z "$userver_revision" ]; then
+    echo "Unable to resolve the pinned userver revision" >&2
+    exit 1
+  fi
+  proxy_docker_host="${SERVICEGEN_DEPENDENCY_PROXY_DOCKER_HOST:-host.docker.internal}"
+  proxy_port="${SERVICEGEN_DEPENDENCY_PROXY_PORT:-${SERVICEGEN_NEXUS_PORT:-18081}}"
+  export USERVER_SOURCE_CONTEXT="http://$proxy_docker_host:$proxy_port/repository/github-raw/userver-framework/userver/archive/$userver_revision.tar.gz"
   export SERVICEGEN_REAL_DOCKER="$(command -v docker)"
   proxy_bin="$BENCHMARK_ROOT/.artifacts/dependency-proxy-bin"
   mkdir -p "$proxy_bin"
