@@ -1,12 +1,12 @@
 # ServiceLib benchmarks
 
-Cross-language performance benchmarks for the generated Go, C++, Python and
-Rust example services.
+Cross-language performance benchmarks for the generated Go, userver C++,
+Boost C++, Python, Rust and TypeScript services plus their native baselines.
 
 ## Quickstart
 
 Only this repository needs to be cloned by hand. `quickstart.sh` clones the
-framework repositories and all four pinned native projects into
+framework repositories and all six pinned native projects into
 `benchmarks/.dependencies/`, then runs the benchmark with 256 virtual users by
 default:
 
@@ -34,6 +34,17 @@ To benchmark the framework implementations with the generated mixed
 This uses disposable generated examples and writes separately prefixed
 artifacts; it does not modify the managed canonical checkouts.
 
+The two complete profiles are therefore:
+
+```bash
+./quickstart.sh                    # function-call
+./quickstart.sh -- call-semantics # current pooled/parallel graph
+```
+
+`call-semantics` is a quickstart/Make target, not an argument accepted by the
+Python load runner. Put benchmark variable overrides after it, for example
+`./quickstart.sh -- call-semantics RUNS=1 DURATION=10s`.
+
 The comparative path does not start Redpanda. Its generated framework
 configurations explicitly disable the `orderProcessed` Kafka endpoint; native
 implementations contain no Kafka branch and receive no Kafka-specific flag.
@@ -45,6 +56,11 @@ anything. To keep them elsewhere, pass an explicit directory:
 ./quickstart.sh --dependencies-dir /path/to/benchmark-repositories
 ```
 
+Delete `examples/.artifacts` before a deliberately clean measurement. The
+quickstart normally refreshes existing Git mirrors before resolving managed
+revisions; `--skip-git-mirror-refresh` is only for a known-fresh offline cache,
+not a fallback after refresh failure.
+
 ### Optional shared package proxy
 
 To route package downloads through the generated shared Nexus proxy, opt in
@@ -53,7 +69,7 @@ with one global data directory:
 ```bash
 ./quickstart.sh --clone-only
 export DEPENDENCY_PROXY_DIR="$HOME/.servicegen/dependency-proxy"
-make -C .dependencies/goexample SERVICEGEN_NEXUS_ACCEPT_EULA=true dependency-cache-up # first start only
+make -C .dependencies/goexample DEPENDENCY_PROXY_ACCEPT_EULA=true dependency-cache-up # first start only
 ./quickstart.sh
 ```
 
@@ -61,8 +77,8 @@ The quickstart configures host and Docker consumers automatically, including
 Docker Engine on Linux through `host-gateway`. Without the variable it uses
 normal upstreams. The persistent proxy data is shared with profiling,
 conformance and generated projects. It caches package registries,
-Debian/Ubuntu APT packages and immutable source archives, not compiler output
-or arbitrary project Git clones.
+Debian/Ubuntu APT packages and immutable source archives. The companion Git
+mirror caches project clones; compiler and benchmark outputs remain separate.
 
 The same directory can be used with direct Make invocations:
 
