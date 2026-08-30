@@ -15,7 +15,7 @@ HERE = Path(__file__).resolve().parent
 BENCHMARK_ROOT = HERE.parent
 DEPENDENCIES = Path(
     os.environ.get(
-        "BENCHMARK_DEPENDENCIES_DIR",
+        "DEPENDENCIES_DIR",
         str(BENCHMARK_ROOT / ".dependencies"),
     )
 ).expanduser().resolve()

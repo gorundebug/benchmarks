@@ -20,8 +20,12 @@ set -euo pipefail
 
 ORG="https://github.com/gorundebug"
 BENCHMARK_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-DEPENDENCIES_DIR="$BENCHMARK_ROOT/.dependencies"
-MANAGED_DEPENDENCIES=1
+if [ -n "${DEPENDENCIES_DIR:-}" ]; then
+  MANAGED_DEPENDENCIES=0
+else
+  DEPENDENCIES_DIR="$BENCHMARK_ROOT/.dependencies"
+  MANAGED_DEPENDENCIES=1
+fi
 
 REPOS=(goexample cppexample cppboostexample pyexample rustexample tsexample servicelib cppservicelib cppboostservicelib pyservicelib rustservicelib tsservicelib servicegen)
 
@@ -63,8 +67,8 @@ done
 
 mkdir -p "$DEPENDENCIES_DIR"
 DEPENDENCIES_DIR="$(CDPATH= cd -- "$DEPENDENCIES_DIR" && pwd)"
-export BENCHMARK_DEPENDENCIES_DIR="$DEPENDENCIES_DIR"
-export BENCHMARK_UPDATE_MANAGED_DEPENDENCIES="$MANAGED_DEPENDENCIES"
+export DEPENDENCIES_DIR
+export UPDATE_MANAGED_DEPENDENCIES="$MANAGED_DEPENDENCIES"
 
 echo "==> Checking prerequisites"
 missing=0

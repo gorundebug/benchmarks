@@ -83,7 +83,7 @@ mirror caches project clones; compiler and benchmark outputs remain separate.
 The same directory can be used with direct Make invocations:
 
 ```bash
-make -C examples run BENCHMARK_DEPENDENCIES_DIR=/path/to/benchmark-repositories
+make -C examples run DEPENDENCIES_DIR=/path/to/benchmark-repositories
 ```
 
 After changing a pinned C++ dependency version, discard prepared sources and

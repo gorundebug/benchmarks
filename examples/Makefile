@@ -1,7 +1,7 @@
 PYTHON ?= python3
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BENCHMARK_DEPENDENCIES_DIR ?= $(abspath $(MAKEFILE_DIR)/../.dependencies)
-export BENCHMARK_DEPENDENCIES_DIR
+DEPENDENCIES_DIR ?= $(abspath $(MAKEFILE_DIR)/../.dependencies)
+export DEPENDENCIES_DIR
 
 CORES ?= 2
 VUS ?= 32
@@ -30,7 +30,7 @@ DURABLE_TIMEOUT ?= 300
 
 dependency-source-cache-invalidate: ## Recreate fetched C++ source/CMake caches, preserving ccache and Nexus
 	@set -e; found=0; \
-	for project in "$(BENCHMARK_DEPENDENCIES_DIR)/cppexample" "$(BENCHMARK_DEPENDENCIES_DIR)/cppboostexample"; do \
+	for project in "$(DEPENDENCIES_DIR)/cppexample" "$(DEPENDENCIES_DIR)/cppboostexample"; do \
 		if [ -f "$$project/make.generated.mk" ]; then \
 			found=1; $(MAKE) -C "$$project" dependency-source-cache-invalidate; \
 		fi; \

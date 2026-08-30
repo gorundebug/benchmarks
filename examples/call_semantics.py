@@ -15,7 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 BENCHMARK_ROOT = HERE.parent
 ROOT = Path(
-    os.environ.get("BENCHMARK_DEPENDENCIES_DIR", BENCHMARK_ROOT / ".dependencies")
+    os.environ.get("DEPENDENCIES_DIR", BENCHMARK_ROOT / ".dependencies")
 ).expanduser().resolve()
 ARTIFACTS = HERE / ".artifacts" / "call-semantics"
 SERVICEGEN = ROOT / "servicegen"
@@ -91,7 +91,7 @@ def generate_archives(archive_dir: Path) -> str:
     env.update(
         {
             "SERVICEGEN_EXAMPLE_ARCHIVE_DIR": str(archive_dir),
-            "SERVICEGEN_EXAMPLE_PROFILE": "current",
+            "EXAMPLE_PROFILE": "current",
             "GOCACHE": os.environ.get("GOCACHE", "/tmp/servicegen-go-build"),
             "GOWORK": "off",
         }
@@ -224,9 +224,9 @@ def main() -> int:
         env = os.environ.copy()
         env.update(
             {
-                "BENCHMARK_DEPENDENCIES_DIR": str(workspace),
-                "BENCHMARK_UPDATE_MANAGED_DEPENDENCIES": "0",
-                "SERVICEGEN_EXAMPLE_PROFILE": "current",
+                "DEPENDENCIES_DIR": str(workspace),
+                "UPDATE_MANAGED_DEPENDENCIES": "0",
+                "EXAMPLE_PROFILE": "current",
             }
         )
         run(benchmark_command(args, selected), cwd=HERE, env=env)
