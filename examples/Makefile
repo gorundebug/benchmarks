@@ -3,6 +3,35 @@ MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 DEPENDENCIES_DIR ?= $(abspath $(MAKEFILE_DIR)/../.dependencies)
 export DEPENDENCIES_DIR
 
+ifneq ($(strip $(DEPENDENCY_PROXY_DIR)),)
+DEPENDENCY_PROXY_HOST ?= localhost
+DEPENDENCY_PROXY_DOCKER_HOST ?= host.docker.internal
+DEPENDENCY_PROXY_PORT ?= 18081
+DEPENDENCY_GIT_MIRROR_PORT ?= 18084
+DEPENDENCY_PROXY_BASE := http://$(DEPENDENCY_PROXY_HOST):$(DEPENDENCY_PROXY_PORT)/repository
+DEPENDENCY_GIT_MIRROR_BASE := http://$(DEPENDENCY_PROXY_HOST):$(DEPENDENCY_GIT_MIRROR_PORT)/cgi-bin/git
+export GOPROXY := $(DEPENDENCY_PROXY_BASE)/go-proxy/
+export GOSUMDB := off
+export NPM_CONFIG_REGISTRY := $(DEPENDENCY_PROXY_BASE)/npm-proxy/
+export PIP_INDEX_URL := $(DEPENDENCY_PROXY_BASE)/pypi-proxy/simple
+export PIP_TRUSTED_HOST := $(DEPENDENCY_PROXY_HOST)
+export UV_INDEX_URL := $(DEPENDENCY_PROXY_BASE)/pypi-proxy/simple
+export CARGO_REGISTRIES_CRATES_IO_INDEX := sparse+$(DEPENDENCY_PROXY_BASE)/cargo-proxy/
+export DEPENDENCY_GITHUB_RAW_URL := $(DEPENDENCY_PROXY_BASE)/github-raw
+export DEPENDENCY_GITLAB_RAW_URL := $(DEPENDENCY_PROXY_BASE)/gitlab-raw
+export DEPENDENCY_GIT_MIRROR_URL := $(DEPENDENCY_GIT_MIRROR_BASE)
+export GIT_CONFIG_COUNT := 2
+export GIT_CONFIG_KEY_0 := url.$(DEPENDENCY_GIT_MIRROR_BASE)/github.com/.insteadOf
+export GIT_CONFIG_VALUE_0 := https://github.com/
+export GIT_CONFIG_KEY_1 := url.$(DEPENDENCY_GIT_MIRROR_BASE)/gitlab.com/.insteadOf
+export GIT_CONFIG_VALUE_1 := https://gitlab.com/
+ifeq ($(origin DEPENDENCY_REAL_DOCKER),undefined)
+DEPENDENCY_REAL_DOCKER := $(shell command -v docker)
+endif
+export DEPENDENCY_REAL_DOCKER
+export PATH := $(abspath $(MAKEFILE_DIR)/../scripts/dependency-proxy-bin):$(PATH)
+endif
+
 CORES ?= 2
 VUS ?= 32
 DURATION ?= 20s

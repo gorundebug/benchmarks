@@ -41,6 +41,12 @@ The two complete profiles are therefore:
 ./quickstart.sh -- call-semantics # current pooled/parallel graph
 ```
 
+Each implementation writes its complete build, proxy, Compose and load output
+to `examples/.artifacts/logs/<profile>/<language>.log`. The terminal remains
+compact (`START`/`PASS`/`FAIL`); on failure it prints the log path and tail.
+`results.json` records the same paths, so proxy/cache routing can be audited
+without rerunning the benchmark.
+
 `call-semantics` is a quickstart/Make target, not an argument accepted by the
 Python load runner. Put benchmark variable overrides after it, for example
 `./quickstart.sh -- call-semantics RUNS=1 DURATION=10s`.
@@ -80,10 +86,13 @@ conformance and generated projects. It caches package registries,
 Debian/Ubuntu APT packages and immutable source archives. The companion Git
 mirror caches project clones; compiler and benchmark outputs remain separate.
 
-The same directory can be used with direct Make invocations:
+The same directory can be used with direct Make invocations; the tracked
+Docker wrapper resolves to the generated wrapper in `DEPENDENCIES_DIR`, so
+direct Make and quickstart use the same proxy contract:
 
 ```bash
-make -C examples run DEPENDENCIES_DIR=/path/to/benchmark-repositories
+DEPENDENCY_PROXY_DIR="$HOME/.servicegen/dependency-proxy" \
+  make -C examples run DEPENDENCIES_DIR=/path/to/benchmark-repositories
 ```
 
 After changing a pinned C++ dependency version, discard prepared sources and

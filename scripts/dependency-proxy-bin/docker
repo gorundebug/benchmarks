@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+benchmark_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+dependencies_dir=${DEPENDENCIES_DIR:-$benchmark_root/.dependencies}
+wrapper=$dependencies_dir/cppexample/scripts/docker-dependency-proxy.generated.sh
+if [ ! -x "$wrapper" ]; then
+  echo "generated Docker dependency proxy wrapper is missing: $wrapper" >&2
+  exit 2
+fi
+exec "$wrapper" "$@"
