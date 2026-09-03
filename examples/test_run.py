@@ -54,6 +54,30 @@ class DependencyEnvironmentTest(unittest.TestCase):
             self.assertEqual(actual[name], value)
 
 
+BENCHMARKS = Path(__file__).resolve().parents[1]
+
+
+class DependencyProxyContractTest(unittest.TestCase):
+    def test_has_no_generator_namespace(self) -> None:
+        forbidden = "SERVICE" + "GEN_"
+        offenders = []
+        for path in BENCHMARKS.rglob("*"):
+            if not path.is_file() or any(
+                part in {".git", ".dependencies", ".artifacts", "build", "__pycache__"}
+                for part in path.parts
+            ):
+                continue
+            if path.suffix not in {".py", ".sh", ".mk", ".yml", ".yaml", ".md"} and path.name not in {"Makefile", "Dockerfile"}:
+                continue
+            text = path.read_text(errors="ignore")
+            if any(
+                f"{forbidden}{token}" in text
+                for token in ("DEPENDENCY", "NEXUS", "GIT_MIRROR", "GITHUB_RAW", "GITLAB_RAW", "MAVEN", "APT_", "HELM_")
+            ):
+                offenders.append(str(path.relative_to(BENCHMARKS)))
+        self.assertEqual(offenders, [])
+
+
 class DisabledKafkaConfigTest(unittest.TestCase):
     def test_keeps_every_required_connector_field(self) -> None:
         self.assertEqual(
@@ -423,6 +447,32 @@ class CleanCheckoutContextTest(unittest.TestCase):
         self.assertEqual(
             env["ASIO_GRPC_SOURCE_CONTEXT"],
             "/cache/asio-grpc-src",
+        )
+
+    def test_remote_docker_git_contexts_use_mirror_in_proxy_mode(self) -> None:
+        environment = {
+            "DEPENDENCY_PROXY_DIR": "/cache",
+            "DEPENDENCY_PROXY_HOST": "localhost",
+            "DEPENDENCY_PROXY_DOCKER_HOST": "host.docker.internal",
+            "DEPENDENCY_GIT_MIRROR_URL": "http://localhost:18084/cgi-bin/git",
+        }
+        self.assertEqual(
+            benchmark.docker_git_source_context(
+                environment, "https://github.com/grpc/grpc.git#v1.71.0"
+            ),
+            "http://host.docker.internal:18084/cgi-bin/git/"
+            "github.com/grpc/grpc.git#v1.71.0",
+        )
+        self.assertEqual(
+            benchmark.docker_git_source_context(
+                environment, "https://gitlab.com/example/library.git#main"
+            ),
+            "http://host.docker.internal:18084/cgi-bin/git/"
+            "gitlab.com/example/library.git#main",
+        )
+        self.assertEqual(
+            benchmark.docker_git_source_context(environment, "/cache/grpc-src"),
+            "/cache/grpc-src",
         )
 
     def test_typescript_framework_builds_runtime_images(self) -> None:

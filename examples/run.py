@@ -115,6 +115,34 @@ def cppboost_dependency_context(dependency: str) -> str:
     return f"{repository}#{match.group(1)}"
 
 
+def docker_build_environment_value(env: dict[str, str], name: str) -> str | None:
+    value = env.get(name)
+    if not value or not env.get("DEPENDENCY_PROXY_DIR"):
+        return value
+    host = env.get("DEPENDENCY_PROXY_HOST", "localhost")
+    docker_host = env.get(
+        "DEPENDENCY_PROXY_DOCKER_HOST", "host.docker.internal"
+    )
+    return value.replace(f"://{host}:", f"://{docker_host}:")
+
+
+def docker_git_source_context(env: dict[str, str], context: str) -> str:
+    """Route remote Docker Git contexts through the shared mirror in proxy mode."""
+    if not env.get("DEPENDENCY_PROXY_DIR"):
+        return context
+    mirror = env.get("DEPENDENCY_GIT_MIRROR_URL")
+    if not mirror:
+        return context
+    mirror = docker_build_environment_value(
+        env, "DEPENDENCY_GIT_MIRROR_URL"
+    ) or mirror
+    for upstream in ("https://github.com/", "https://gitlab.com/"):
+        if context.startswith(upstream):
+            authority = upstream.removeprefix("https://")
+            return f"{mirror.rstrip('/')}/{authority}{context[len(upstream):]}"
+    return context
+
+
 @dataclass(frozen=True)
 class Language:
     name: str
@@ -397,7 +425,7 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
         env["USERVER_SOURCE_CONTEXT"] = os.environ.get("USERVER_SOURCE_CONTEXT") or (
             str(local_userver)
             if local_userver.is_dir()
-            else USERVER_REMOTE_CONTEXT
+            else docker_git_source_context(env, USERVER_REMOTE_CONTEXT)
         )
         env["USERVER_LTO"] = "ON"
     elif language.name == "cpp-boost-native":
@@ -419,11 +447,13 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
         # versions as cppboostservicelib and remain cached by BuildKit.
         if "GRPC_SOURCE_CONTEXT" not in env:
             env["GRPC_SOURCE_CONTEXT"] = (
-                cppboost_dependency_context("grpc")
+                docker_git_source_context(env, cppboost_dependency_context("grpc"))
             )
         if "ASIO_GRPC_SOURCE_CONTEXT" not in env:
             env["ASIO_GRPC_SOURCE_CONTEXT"] = (
-                cppboost_dependency_context("asio-grpc")
+                docker_git_source_context(
+                    env, cppboost_dependency_context("asio-grpc")
+                )
             )
     elif language.name == "python":
         env["PYSERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "pyservicelib")
