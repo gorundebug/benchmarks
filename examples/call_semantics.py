@@ -117,8 +117,8 @@ def verify_graph(example: Path) -> None:
     graph = example / "graph" / "example.generated.yaml"
     source = graph.read_text()
     expected = {
-        "TaskPool": 1,
-        "PriorityTaskPool": 1,
+        "TaskPool": 4,
+        "PriorityTaskPool": 4,
         "ParallelCall": 3,
     }
     actual = {
