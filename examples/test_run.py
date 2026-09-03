@@ -566,7 +566,7 @@ class CppComposeIsolationTest(unittest.TestCase):
                     if item.name == language_name
                 )
                 resolved = {"services": {
-                    service: {"image": f"{expected_prefix}-{service}"}
+                    service: {"image": f"{expected_prefix}-{service}:local"}
                     for service in ("inventoryservice", "orderservice")
                 }}
                 completed = type(
