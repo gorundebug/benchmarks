@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TextIO
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import dependency_command
 import tooling_lock
 
 BENCHMARK_DIR = Path(__file__).resolve().parent
@@ -113,34 +115,6 @@ def cppboost_dependency_context(dependency: str) -> str:
     if match is None:
         raise RuntimeError(f"{prefix}_VERSION is missing from {versions}")
     return f"{repository}#{match.group(1)}"
-
-
-def docker_build_environment_value(env: dict[str, str], name: str) -> str | None:
-    value = env.get(name)
-    if not value or not env.get("DEPENDENCY_PROXY_DIR"):
-        return value
-    host = env.get("DEPENDENCY_PROXY_HOST", "localhost")
-    docker_host = env.get(
-        "DEPENDENCY_PROXY_DOCKER_HOST", "host.docker.internal"
-    )
-    return value.replace(f"://{host}:", f"://{docker_host}:")
-
-
-def docker_git_source_context(env: dict[str, str], context: str) -> str:
-    """Route remote Docker Git contexts through the shared mirror in proxy mode."""
-    if not env.get("DEPENDENCY_PROXY_DIR"):
-        return context
-    mirror = env.get("DEPENDENCY_GIT_MIRROR_URL")
-    if not mirror:
-        return context
-    mirror = docker_build_environment_value(
-        env, "DEPENDENCY_GIT_MIRROR_URL"
-    ) or mirror
-    for upstream in ("https://github.com/", "https://gitlab.com/"):
-        if context.startswith(upstream):
-            authority = upstream.removeprefix("https://")
-            return f"{mirror.rstrip('/')}/{authority}{context[len(upstream):]}"
-    return context
 
 
 @dataclass(frozen=True)
@@ -247,6 +221,7 @@ def ensure_example(language: Language, env: dict[str, str]) -> None:
                 ],
                 cwd=language.example,
                 env=env,
+                retry_network=True,
             )
             head = run(
                 ["git", "rev-parse", "HEAD"],
@@ -300,6 +275,7 @@ def ensure_example(language: Language, env: dict[str, str]) -> None:
             ],
             cwd=language.example.parent,
             env=env,
+            retry_network=True,
         )
         if not (checkout / "docker-compose.yml").is_file():
             raise RuntimeError(
@@ -328,8 +304,16 @@ def run(
     env: dict[str, str],
     capture: bool = False,
     check: bool = True,
+    retry_network: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     print("+", " ".join(command), flush=True)
+    if retry_network:
+        if capture or not check:
+            raise ValueError("network retry requires non-captured checked command")
+        return dependency_command.run(
+            command, cwd=cwd, env=env, output_stream=ACTIVE_LANGUAGE_LOG,
+            echo=ACTIVE_LANGUAGE_LOG is None,
+        )
     completed = subprocess.run(
         command, cwd=cwd, env=env, check=False, text=True,
         capture_output=capture,
@@ -416,6 +400,9 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
             ),
         }
     )
+    # Mixed C++ examples use the generated Go automation service until their
+    # runtimes support Temporal. Keep that framework boundary local too.
+    env["GOSERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "servicelib")
     if language.name == "cpp":
         env["COMPOSE_PROJECT_NAME"] = "cppexample"
         env["SERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "cppservicelib")
@@ -425,7 +412,7 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
         env["USERVER_SOURCE_CONTEXT"] = os.environ.get("USERVER_SOURCE_CONTEXT") or (
             str(local_userver)
             if local_userver.is_dir()
-            else docker_git_source_context(env, USERVER_REMOTE_CONTEXT)
+            else USERVER_REMOTE_CONTEXT
         )
         env["USERVER_LTO"] = "ON"
     elif language.name == "cpp-boost-native":
@@ -447,13 +434,11 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
         # versions as cppboostservicelib and remain cached by BuildKit.
         if "GRPC_SOURCE_CONTEXT" not in env:
             env["GRPC_SOURCE_CONTEXT"] = (
-                docker_git_source_context(env, cppboost_dependency_context("grpc"))
+                cppboost_dependency_context("grpc")
             )
         if "ASIO_GRPC_SOURCE_CONTEXT" not in env:
             env["ASIO_GRPC_SOURCE_CONTEXT"] = (
-                docker_git_source_context(
-                    env, cppboost_dependency_context("asio-grpc")
-                )
+                cppboost_dependency_context("asio-grpc")
             )
     elif language.name == "python":
         env["PYSERVICELIB_SOURCE_CONTEXT"] = str(ROOT / "pyservicelib")
@@ -468,24 +453,27 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
 
 def build(language: Language, env: dict[str, str]) -> None:
     if language.name == "go":
-        run(["make", "docker-build"], cwd=language.example, env=env)
+        run(["make", "docker-build"], cwd=language.example, env=env, retry_network=True)
     elif language.name == "typescript":
         run(
             ["make", "docker-build", "RUNTIME_IMAGE=1"],
             cwd=language.example,
             env=env,
+            retry_network=True,
         )
     elif language.name in {"cpp", "cpp-boost"}:
         run(
             ["make", "docker-build", "RUNTIME_IMAGE=1"],
             cwd=language.example,
             env=env,
+            retry_network=True,
         )
     else:
         run(
             compose_command(language, "build", "inventoryservice", "orderservice"),
             cwd=language.example,
             env=env,
+            retry_network=True,
         )
 
 
@@ -618,26 +606,29 @@ def prepare_cpp_configs(service_cores: int) -> None:
         else:
             values["inventoryServiceApiAddress"] = "dns:///inventoryservice:9202"
             values["defaultPoolExecutorsCount"] = service_cores
-            values.update(disabled_kafka_connector_values())
+            values["orderEventsBrokers"] = "redpanda:9092"
             values["orderServiceDefaultGrpcTimeout"] = 5000
             values["softDeadlineDuration"] = 1000
             values["orderProcessedEnabled"] = False
-        text = "".join(
-            f"{key}: {json.dumps(value)}\n"
-            for key, value in values.items()
+        source = (
+            ROOT / "cppexample" / service / "config"
+            / "config_vars.integration.yaml"
         )
+        remaining = dict(values)
+        lines = []
+        for line in source.read_text().splitlines():
+            key, separator, _ = line.partition(":")
+            if separator and key in values:
+                lines.append(f"{key}: {json.dumps(values[key])}")
+                remaining.pop(key, None)
+            else:
+                lines.append(line)
+        lines.extend(
+            f"{key}: {json.dumps(value)}"
+            for key, value in remaining.items()
+        )
+        text = "\n".join(lines) + "\n"
         (output / f"{service}.config_vars.yaml").write_text(text)
-
-
-def disabled_kafka_connector_values() -> dict[str, object]:
-    """Keep the disabled endpoint's connector structurally valid."""
-    return {
-        "orderEventsBrokers": "redpanda:9092",
-        "orderEventsPassword": "",
-        "orderEventsSaslMechanism": "SCRAM-SHA-512",
-        "orderEventsSecurityProtocol": "PLAINTEXT",
-        "orderEventsUsername": "",
-    }
 
 
 def disable_order_processed_endpoint(values: str) -> str:

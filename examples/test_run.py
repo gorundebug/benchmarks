@@ -78,20 +78,6 @@ class DependencyProxyContractTest(unittest.TestCase):
         self.assertEqual(offenders, [])
 
 
-class DisabledKafkaConfigTest(unittest.TestCase):
-    def test_keeps_every_required_connector_field(self) -> None:
-        self.assertEqual(
-            benchmark.disabled_kafka_connector_values(),
-            {
-                "orderEventsBrokers": "redpanda:9092",
-                "orderEventsPassword": "",
-                "orderEventsSaslMechanism": "SCRAM-SHA-512",
-                "orderEventsSecurityProtocol": "PLAINTEXT",
-                "orderEventsUsername": "",
-            },
-        )
-
-
 class PoolVerificationTest(unittest.TestCase):
     def language_with_graph(self, call_semantics: str) -> benchmark.Language:
         temporary_directory = tempfile.TemporaryDirectory()
@@ -449,32 +435,6 @@ class CleanCheckoutContextTest(unittest.TestCase):
             "/cache/asio-grpc-src",
         )
 
-    def test_remote_docker_git_contexts_use_mirror_in_proxy_mode(self) -> None:
-        environment = {
-            "DEPENDENCY_PROXY_DIR": "/cache",
-            "DEPENDENCY_PROXY_HOST": "localhost",
-            "DEPENDENCY_PROXY_DOCKER_HOST": "host.docker.internal",
-            "DEPENDENCY_GIT_MIRROR_URL": "http://localhost:18084/cgi-bin/git",
-        }
-        self.assertEqual(
-            benchmark.docker_git_source_context(
-                environment, "https://github.com/grpc/grpc.git#v1.71.0"
-            ),
-            "http://host.docker.internal:18084/cgi-bin/git/"
-            "github.com/grpc/grpc.git#v1.71.0",
-        )
-        self.assertEqual(
-            benchmark.docker_git_source_context(
-                environment, "https://gitlab.com/example/library.git#main"
-            ),
-            "http://host.docker.internal:18084/cgi-bin/git/"
-            "gitlab.com/example/library.git#main",
-        )
-        self.assertEqual(
-            benchmark.docker_git_source_context(environment, "/cache/grpc-src"),
-            "/cache/grpc-src",
-        )
-
     def test_typescript_framework_builds_runtime_images(self) -> None:
         language = next(
             item for item in benchmark.LANGUAGES if item.name == "typescript"
@@ -485,6 +445,7 @@ class CleanCheckoutContextTest(unittest.TestCase):
             ["make", "docker-build", "RUNTIME_IMAGE=1"],
             cwd=language.example,
             env={},
+            retry_network=True,
         )
 
 
@@ -646,6 +607,61 @@ class CppTelemetryBaselineTest(unittest.TestCase):
 
 
 class BenchmarkKafkaConfigurationTest(unittest.TestCase):
+    def test_cpp_config_preserves_generated_kafka_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "dependencies"
+            artifacts = Path(directory) / "artifacts"
+            for service in ("inventoryservice", "orderservice"):
+                service_root = root / "cppexample" / service
+                (service_root / "config").mkdir(parents=True)
+                (service_root / "static_config.yaml").write_text(
+                    "components_manager:\n"
+                    "  task_processors:\n"
+                    "    main-task-processor:\n      worker_threads: 2\n"
+                    "    fs-task-processor:\n      worker_threads: 1\n"
+                    "  components:\n"
+                    "    server:\n"
+                    "      listener:\n        port: 1\n"
+                    + (
+                        "    grpc-client-factory:\n"
+                        if service == "orderservice" else ""
+                    )
+                    + (
+                        ""
+                        if service == "orderservice"
+                        else "    grpc-server:\n      completion-queue-count: 1\n"
+                    )
+                )
+                variables = (
+                    "orderEventsPassword: secret\n"
+                    "orderEventsUsername: user\n"
+                    "orderEventsSaslMechanism: SCRAM-SHA-512\n"
+                    "orderEventsSecurityProtocol: SASL_SSL\n"
+                    if service == "orderservice" else ""
+                )
+                (service_root / "config" / "config_vars.integration.yaml").write_text(
+                    variables
+                )
+            with (
+                patch.object(benchmark, "ROOT", root),
+                patch.object(benchmark, "ARTIFACTS", artifacts),
+                patch.object(
+                    benchmark,
+                    "_disable_userver_request_middlewares",
+                    lambda value, _service: value,
+                ),
+            ):
+                benchmark.prepare_cpp_configs(2)
+
+            prepared = (
+                artifacts / "cpp-config" / "orderservice.config_vars.yaml"
+            ).read_text()
+            self.assertIn("orderEventsPassword: secret", prepared)
+            self.assertIn("orderEventsUsername: user", prepared)
+            self.assertIn("orderEventsSaslMechanism: SCRAM-SHA-512", prepared)
+            self.assertIn("orderEventsSecurityProtocol: SASL_SSL", prepared)
+            self.assertIn("orderProcessedEnabled: false", prepared)
+
     def test_boost_orderservice_override_disables_kafka(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "dependencies"
