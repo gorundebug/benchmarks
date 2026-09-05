@@ -206,4 +206,4 @@ cd "$BENCHMARK_ROOT/examples"
 if [ "$#" -gt 0 ] && [[ "$1" != *=* ]]; then
   exec make "$@"
 fi
-exec make run "$@"
+exec make function-call "$@"

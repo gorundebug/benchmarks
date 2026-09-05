@@ -5,7 +5,7 @@ import unittest
 from argparse import Namespace
 from os import environ
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import run as benchmark
 
@@ -130,6 +130,36 @@ class PoolVerificationTest(unittest.TestCase):
             benchmark.service_uses_priority_task_pool(language, "orderservice")
         )
 
+    def test_generated_profile_rejects_mislabeled_current_graph(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            example = Path(directory)
+            (example / "graph").mkdir()
+            (example / "graph/example.generated.yaml").write_text(
+                "callSemantics: FunctionCall\n" * 8
+                + "callSemantics: TaskPool\n" * 4
+                + "callSemantics: PriorityTaskPool\n" * 4
+                + "callSemantics: ParallelCall\n" * 3
+            )
+            language = benchmark.Language(
+                "go", example, example / "compose.yml"
+            )
+            with self.assertRaisesRegex(RuntimeError, "not profile 'function-call'"):
+                benchmark.verify_generated_graph_profile(
+                    language, "function-call"
+                )
+
+    def test_live_profile_rejects_stale_runtime_image(self) -> None:
+        language = self.language_with_graph("FunctionCall")
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.read.return_value = b"callSemantics: TaskPool\n"
+        with patch.object(benchmark.urllib.request, "urlopen", return_value=response):
+            with self.assertRaisesRegex(RuntimeError, "runtime image is stale"):
+                benchmark.verify_live_service_graph_profile(
+                    language, "orderservice", 9091
+                )
+
     def test_missing_generated_graph_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             language = benchmark.Language(
@@ -225,6 +255,41 @@ class NoopTelemetryVerificationTest(unittest.TestCase):
                 RuntimeError, "SERVICELIB_NOOP_METRICS must resolve to 1"
             ):
                 benchmark.verify_noop_telemetry_configuration(self.language(), {})
+
+    def test_final_report_records_verified_noop_telemetry(self) -> None:
+        args = Namespace(
+            cores=2, duration="20s", expected_status=200,
+            graph_profile="function-call", loadgen_cores=6, method="POST",
+            payload_mode="normal", result_prefix="", runs=3,
+            scenario="process_order_out_of_stock", skip_build=False,
+            target="http://orderservice:9091/v1/processorder", vus=256,
+            warmup="5s", grpc_only=False,
+        )
+        result = {
+            "language": "go", "service_cores": 2, "loadgen_cores": 6,
+            "vus": 256, "runs": 3, "best_run": 1, "duration": "20s",
+            "requests_total": 100, "requests_per_second": 10.0,
+            "error_rate": 0.0,
+            "latency_ms": {
+                "avg": 1.0, "p50": 1.0, "p95": 2.0,
+                "p99": 3.0, "max": 4.0,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(benchmark, "ARTIFACTS", Path(directory)):
+                benchmark.write_results([result], args)
+                metadata = json.loads((Path(directory) / "results.json").read_text())
+                self.assertEqual(
+                    metadata["telemetry"]["SERVICELIB_NOOP_METRICS"], "1"
+                )
+                self.assertEqual(
+                    metadata["call_semantics_verification"]["live_graph"],
+                    "/status/graph verified before warm-up",
+                )
+                markdown = (Path(directory) / "results.md").read_text()
+                self.assertIn("fully merged Docker Compose", markdown)
+                self.assertIn("SERVICELIB_NOOP_TRACING=1", markdown)
+                self.assertIn("live `/status/graph`", markdown)
 
 
 class NativeExampleFetchTest(unittest.TestCase):

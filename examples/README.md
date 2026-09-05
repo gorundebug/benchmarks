@@ -289,7 +289,8 @@ stored as `overload.<language>.<run>.json`.
 
 The runner writes:
 
-- `.artifacts/results.md` — human-readable comparison table;
+- `.artifacts/results.md` — human-readable comparison table, including the
+  telemetry flags verified from each variant's fully merged Compose config;
 - `.artifacts/results.csv` — table for spreadsheets and plotting;
 - `.artifacts/results.json` — results plus host and run metadata;
 - `.artifacts/<language>.run-<n>.json` — raw summary for every measured run;

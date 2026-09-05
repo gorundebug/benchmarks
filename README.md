@@ -41,6 +41,13 @@ The two complete profiles are therefore:
 ./quickstart.sh -- call-semantics # current pooled/parallel graph
 ```
 
+Both modes generate an isolated graph for the selected profile, then verify
+`/status/graph` on the actually running framework services before warm-up. A
+stale image or a graph whose call semantics do not match the requested profile
+fails the run instead of producing a mislabeled benchmark report. Native
+baselines have no ServiceLib graph and are intentionally excluded from this
+assertion.
+
 Each implementation writes its complete build, proxy, Compose and load output
 to `examples/.artifacts/logs/<profile>/<language>.log`. The terminal remains
 compact (`START`/`PASS`/`FAIL`); on failure it prints the log path and tail.

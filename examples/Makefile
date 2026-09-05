@@ -55,7 +55,7 @@ DURABLE_JOBS ?= 1000
 DURABLE_WARMUP_JOBS ?= 50
 DURABLE_TIMEOUT ?= 300
 
-.PHONY: setup-native run quick call-semantics durable durable-quick http-transport http-transport-quick http-json-reject http-json-reject-quick typescript-http-only typescript-http-only-quick grpc-only grpc-only-quick graph-without-grpc graph-without-grpc-quick typescript-kafka-disabled typescript-kafka-disabled-quick capacity overload overload-quick build clean help dependency-source-cache-invalidate
+.PHONY: setup-native run quick function-call call-semantics durable durable-quick http-transport http-transport-quick http-json-reject http-json-reject-quick typescript-http-only typescript-http-only-quick grpc-only grpc-only-quick graph-without-grpc graph-without-grpc-quick typescript-kafka-disabled typescript-kafka-disabled-quick capacity overload overload-quick build clean help dependency-source-cache-invalidate
 
 dependency-source-cache-invalidate: ## Recreate fetched C++ source/CMake caches, preserving ccache and Nexus
 	@set -e; found=0; \
@@ -82,8 +82,13 @@ quick: ## Reuse current images and run one short measurement
 	$(PYTHON) run.py --skip-build --cores $(CORES) --loadgen-cores $(LOADGEN_CORES) --vus $(VUS) \
 		--duration 5s --warmup 2s --runs 1 --max-map-count $(MAX_MAP_COUNT)
 
+function-call: ## Generate, verify and benchmark the all-FunctionCall graph
+	$(PYTHON) call_semantics.py --profile function-call --cores $(CORES) \
+		--loadgen-cores $(LOADGEN_CORES) --vus $(VUS) --duration $(DURATION) \
+		--warmup $(WARMUP) --runs $(RUNS) --max-map-count $(MAX_MAP_COUNT)
+
 call-semantics: ## Benchmark generated framework examples with TaskPool, PriorityTaskPool and ParallelCall
-	$(PYTHON) call_semantics.py --cores $(CORES) --loadgen-cores $(LOADGEN_CORES) \
+	$(PYTHON) call_semantics.py --profile current --cores $(CORES) --loadgen-cores $(LOADGEN_CORES) \
 		--vus $(VUS) --duration $(DURATION) --warmup $(WARMUP) --runs $(RUNS) \
 		--max-map-count $(MAX_MAP_COUNT)
 

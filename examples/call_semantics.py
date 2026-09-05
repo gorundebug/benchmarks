@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark generated framework examples with the current call-semantics profile."""
+"""Benchmark generated framework examples with an exact call-semantics profile."""
 
 from __future__ import annotations
 
@@ -86,12 +86,12 @@ def copy_example(source: Path, destination: Path) -> None:
     )
 
 
-def generate_archives(archive_dir: Path) -> str:
+def generate_archives(archive_dir: Path, profile: str) -> str:
     env = os.environ.copy()
     env.update(
         {
             "SERVICEGEN_EXAMPLE_ARCHIVE_DIR": str(archive_dir),
-            "EXAMPLE_PROFILE": "current",
+            "EXAMPLE_PROFILE": profile,
             "GOCACHE": os.environ.get("GOCACHE", "/tmp/servicegen-go-build"),
             "GOWORK": "off",
         }
@@ -113,29 +113,36 @@ def generate_archives(archive_dir: Path) -> str:
     return completed.stdout
 
 
-def verify_graph(example: Path) -> None:
+def verify_graph(example: Path, profile: str) -> None:
     graph = example / "graph" / "example.generated.yaml"
     source = graph.read_text()
     expected = {
-        "TaskPool": 4,
-        "PriorityTaskPool": 4,
-        "ParallelCall": 3,
-    }
+        "function-call": {
+            "FunctionCall": 19, "TaskPool": 0,
+            "PriorityTaskPool": 0, "ParallelCall": 0,
+        },
+        "current": {
+            "FunctionCall": 8, "TaskPool": 4,
+            "PriorityTaskPool": 4, "ParallelCall": 3,
+        },
+    }[profile]
     actual = {
         name: source.count(f"callSemantics: {name}") for name in expected
     }
     if actual != expected:
         raise RuntimeError(
-            f"{example.name} current profile differs: "
+            f"{example.name} {profile} profile differs: "
             f"actual={actual}, expected={expected}"
         )
 
 
 def prepare_workspace(
-    workspace: Path, archive_dir: Path, selected: list[str]
+    workspace: Path, archive_dir: Path, selected: list[str], profile: str
 ) -> None:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    (ARTIFACTS / "generation.log").write_text(generate_archives(archive_dir))
+    (ARTIFACTS / "generation.log").write_text(
+        generate_archives(archive_dir, profile)
+    )
     for language in selected:
         repository = VARIANTS[language]
         source = ROOT / repository
@@ -144,7 +151,9 @@ def prepare_workspace(
         if not source.is_dir():
             raise RuntimeError(f"missing canonical example: {source}")
         if not archive.is_file() or archive.stat().st_size == 0:
-            raise RuntimeError(f"missing generated current-profile archive: {archive}")
+            raise RuntimeError(
+                f"missing generated {profile}-profile archive: {archive}"
+            )
         copy_example(source, destination)
         completed = run(
             ["bash", "scripts/merge.generated.sh", str(archive)],
@@ -152,7 +161,7 @@ def prepare_workspace(
             capture=True,
         )
         (ARTIFACTS / f"merge-{language}.log").write_text(completed.stdout)
-        verify_graph(destination)
+        verify_graph(destination, profile)
 
     for repository in FRAMEWORKS:
         source = ROOT / repository
@@ -161,7 +170,9 @@ def prepare_workspace(
         (workspace / repository).symlink_to(source, target_is_directory=True)
 
 
-def benchmark_command(args: argparse.Namespace, selected: list[str]) -> list[str]:
+def benchmark_command(
+    args: argparse.Namespace, selected: list[str], profile: str
+) -> list[str]:
     command = [
         sys.executable,
         str(HERE / "run.py"),
@@ -182,9 +193,9 @@ def benchmark_command(args: argparse.Namespace, selected: list[str]) -> list[str
         "--scenario",
         "process_order_out_of_stock",
         "--graph-profile",
-        "current",
+        profile,
         "--result-prefix",
-        "call-semantics",
+        profile,
     ]
     if args.grpc_connections is not None:
         command.extend(("--grpc-connections", str(args.grpc_connections)))
@@ -207,6 +218,9 @@ def main() -> int:
     parser.add_argument("--max-map-count", type=int, default=0)
     parser.add_argument("--language", action="append", choices=tuple(VARIANTS))
     parser.add_argument("--build-only", action="store_true")
+    parser.add_argument(
+        "--profile", choices=("function-call", "current"), default="current"
+    )
     parser.add_argument("--keep-workspace", action="store_true")
     args = parser.parse_args()
 
@@ -214,22 +228,22 @@ def main() -> int:
     if not SERVICEGEN.is_dir():
         raise RuntimeError(f"missing servicegen source: {SERVICEGEN}")
 
-    temporary = Path(tempfile.mkdtemp(prefix="servicelib-call-semantics-benchmark-"))
+    temporary = Path(tempfile.mkdtemp(prefix=f"servicelib-{args.profile}-benchmark-"))
     workspace = temporary / "workspace"
     archives = temporary / "archives"
     workspace.mkdir()
     archives.mkdir()
     try:
-        prepare_workspace(workspace, archives, selected)
+        prepare_workspace(workspace, archives, selected, args.profile)
         env = os.environ.copy()
         env.update(
             {
                 "DEPENDENCIES_DIR": str(workspace),
                 "UPDATE_MANAGED_DEPENDENCIES": "0",
-                "EXAMPLE_PROFILE": "current",
+                "EXAMPLE_PROFILE": args.profile,
             }
         )
-        run(benchmark_command(args, selected), cwd=HERE, env=env)
+        run(benchmark_command(args, selected, args.profile), cwd=HERE, env=env)
         return 0
     finally:
         if args.keep_workspace:
