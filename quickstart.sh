@@ -28,6 +28,7 @@ else
 fi
 
 REPOS=(goexample cppexample cppboostexample pyexample rustexample tsexample servicelib cppservicelib cppboostservicelib pyservicelib rustservicelib tsservicelib servicegen)
+MIRROR_REPOS=("${REPOS[@]}" gonativeexample cppnativeexample cppboostnativeexample pynativeexample rustnativeexample tsnativeexample)
 
 export GIT_HTTP_LOW_SPEED_LIMIT=${DEPENDENCY_GIT_LOW_SPEED_LIMIT:-1024}
 export GIT_HTTP_LOW_SPEED_TIME=${DEPENDENCY_GIT_LOW_SPEED_TIME:-30}
@@ -117,7 +118,7 @@ if [ -n "${DEPENDENCY_PROXY_DIR:-}" ]; then
   export GIT_CONFIG_VALUE_1=https://gitlab.com/
   if [ "$refresh_git_mirror" -eq 1 ]; then
     echo "==> Refreshing managed Git mirrors before resolving revisions"
-    mirror_refresh_repositories=$(printf 'github.com/gorundebug/%s.git\n' "${REPOS[@]}")
+    mirror_refresh_repositories=$(printf 'github.com/gorundebug/%s.git\n' "${MIRROR_REPOS[@]}")
     curl --fail-with-body --show-error --silent \
       --connect-timeout 15 --max-time 600 \
       --retry 2 --retry-delay 2 --retry-max-time 600 --retry-all-errors \
