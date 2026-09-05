@@ -182,11 +182,13 @@ make call-semantics CORES=2 LOADGEN_CORES=6 VUS=256 DURATION=20s WARMUP=5s RUNS=
 ```
 
 This generates disposable examples containing one `TaskPool` link, one
-`PriorityTaskPool` link and three `ParallelCall` links, then benchmarks the six
-framework implementations. Native variants are intentionally excluded because
-they do not contain the ServiceLib graph. The canonical checkouts are not
-modified. Results use the `call-semantics.*` prefix under `.artifacts/`, while
-generation and merge diagnostics are stored in `.artifacts/call-semantics/`.
+`PriorityTaskPool` link and three `ParallelCall` links, then benchmarks all six
+framework/native pairs. Native variants keep their unchanged hand-written
+pipeline and provide the baseline for the generated framework implementation;
+only the ServiceLib graph assertion is skipped for them. The canonical
+checkouts are not modified. Results use the `call-semantics.*` prefix under
+`.artifacts/`, while generation and merge diagnostics are stored in
+`.artifacts/call-semantics/`.
 
 A short smoke benchmark is available as:
 

@@ -163,6 +163,10 @@ def prepare_workspace(
         (ARTIFACTS / f"merge-{language}.log").write_text(completed.stdout)
         verify_graph(destination, profile)
 
+    for source in ROOT.glob("*nativeexample"):
+        if source.is_dir():
+            copy_example(source, workspace / source.name)
+
     for repository in FRAMEWORKS:
         source = ROOT / repository
         if not source.is_dir():
@@ -203,6 +207,7 @@ def benchmark_command(
         command.append("--build-only")
     for language in selected:
         command.extend(("--language", language))
+        command.extend(("--language", f"{language}-native"))
     return command
 
 
