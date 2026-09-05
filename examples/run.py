@@ -787,6 +787,21 @@ def call_semantics_counts(text: str) -> dict[str, int]:
     }
 
 
+def call_semantics_overrides(
+    text: str, default_semantics: str = "FunctionCall"
+) -> dict[str, int]:
+    """Count non-default semantics in a generated or runtime graph.
+
+    Runtime exporters may omit an explicit link semantic when it equals the
+    service default. Generated YAML retains it, so raw token counts are not a
+    stable cross-language runtime contract.
+    """
+    result = call_semantics_counts(text)
+    if default_semantics in result:
+        result[default_semantics] = 0
+    return result
+
+
 def verify_generated_graph_profile(language: Language, profile: str) -> None:
     if not language.verify_framework_pool:
         return
@@ -822,11 +837,11 @@ def verify_live_service_graph_profile(
     graph_path = (
         language.example / service / "graph" / f"{service}.generated.yaml"
     )
-    expected = call_semantics_counts(graph_path.read_text())
+    expected = call_semantics_overrides(graph_path.read_text())
     url = f"http://localhost:{port}/status/graph"
     try:
         with urllib.request.urlopen(url, timeout=5) as response:
-            actual = call_semantics_counts(response.read().decode("utf-8"))
+            actual = call_semantics_overrides(response.read().decode("utf-8"))
     except (OSError, UnicodeError, urllib.error.URLError) as error:
         raise RuntimeError(
             f"cannot verify {language.name} {service} live graph from {url}: {error}"
@@ -834,10 +849,12 @@ def verify_live_service_graph_profile(
     if actual != expected:
         raise RuntimeError(
             f"{language.name} {service} live graph uses the wrong call semantics: "
-            f"actual={actual}, generated={expected}; the runtime image is stale"
+            f"actual overrides={actual}, generated overrides={expected}; "
+            "the runtime image is stale"
         )
     print(
-        f"Verified {language.name} {service}: live call semantics={actual}",
+        f"Verified {language.name} {service}: live call-semantics "
+        f"overrides={actual}",
         flush=True,
     )
 
