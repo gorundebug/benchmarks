@@ -23,6 +23,8 @@ class CurrentGraphContractTest(unittest.TestCase):
             source.mkdir()
             (source / "docker-compose.yml").write_text("services: {}\n")
             (source / "build.rs").write_text("fn main() {}\n")
+            (source / "src/bin").mkdir(parents=True)
+            (source / "src/bin/orderservice.rs").write_text("fn main() {}\n")
             workspace = root / "workspace"
             archives = root / "archives"
             artifacts = root / "artifacts"
@@ -45,6 +47,10 @@ class CurrentGraphContractTest(unittest.TestCase):
             )
             self.assertEqual(
                 (workspace / "gonativeexample/build.rs").read_text(),
+                "fn main() {}\n",
+            )
+            self.assertEqual(
+                (workspace / "gonativeexample/src/bin/orderservice.rs").read_text(),
                 "fn main() {}\n",
             )
 

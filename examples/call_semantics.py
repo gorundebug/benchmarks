@@ -74,7 +74,6 @@ def copy_example(source: Path, destination: Path) -> None:
             ".pytest_cache",
             ".ruff_cache",
             ".venv",
-            "bin",
             "build",
             "build-*",
             "build_*",
