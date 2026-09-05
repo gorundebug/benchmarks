@@ -22,6 +22,7 @@ class CurrentGraphContractTest(unittest.TestCase):
             source = root / "gonativeexample"
             source.mkdir()
             (source / "docker-compose.yml").write_text("services: {}\n")
+            (source / "build.rs").write_text("fn main() {}\n")
             workspace = root / "workspace"
             archives = root / "archives"
             artifacts = root / "artifacts"
@@ -41,6 +42,10 @@ class CurrentGraphContractTest(unittest.TestCase):
             self.assertEqual(
                 (workspace / "gonativeexample/docker-compose.yml").read_text(),
                 "services: {}\n",
+            )
+            self.assertEqual(
+                (workspace / "gonativeexample/build.rs").read_text(),
+                "fn main() {}\n",
             )
 
     def test_both_profiles_forward_the_complete_comparison_matrix(self) -> None:
