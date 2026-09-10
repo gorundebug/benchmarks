@@ -516,6 +516,40 @@ def _disable_userver_request_middlewares(
             f"found {server_count}"
         )
 
+    static_config, listener_count = re.subn(
+        r"(?m)^      listener:\n",
+        "      listener:\n"
+        "        handler-defaults:\n"
+        "          set_tracing_headers: false\n",
+        static_config,
+    )
+    if listener_count != 1:
+        raise RuntimeError(
+            f"{service} must define exactly one userver HTTP listener, "
+            f"found {listener_count}"
+        )
+
+    noop_manager = "    servicelib-noop-tracing-manager:\n"
+    tracing_locator = (
+        "    tracing-manager-locator:\n"
+        "      component-name: servicelib-noop-tracing-manager\n"
+    )
+    if noop_manager in static_config:
+        static_config = static_config.replace(
+            noop_manager, noop_manager + tracing_locator, 1
+        )
+    else:
+        static_config, components_count = re.subn(
+            r"(?m)^  components:\n",
+            "  components:\n" + noop_manager + tracing_locator,
+            static_config,
+        )
+        if components_count != 1:
+            raise RuntimeError(
+                f"{service} must define exactly one userver components section, "
+                f"found {components_count}"
+            )
+
     has_grpc_client = bool(
         re.search(r"(?m)^    grpc-client-factory:\n", static_config)
     )

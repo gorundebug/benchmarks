@@ -41,7 +41,7 @@ class DependencyEnvironmentTest(unittest.TestCase):
         )
         contract = {
             "DEPENDENCY_PROXY_DIR": "/cache",
-            "DEPENDENCY_CONAN_REMOTE_URL": "http://proxy/conan-group",
+            "DEPENDENCY_CONAN_REMOTE_URL": "http://proxy/conan-proxy",
             "DEPENDENCY_GITHUB_RAW_URL": "http://proxy/github-raw",
             "GOPROXY": "http://proxy/go-proxy/",
             "NPM_CONFIG_REGISTRY": "http://proxy/npm-proxy/",
@@ -659,6 +659,10 @@ class CppTelemetryBaselineTest(unittest.TestCase):
             prepared,
         )
         self.assertIn("disable-all-pipeline-middlewares: true", prepared)
+        self.assertIn("set_tracing_headers: false", prepared)
+        self.assertIn(
+            "component-name: servicelib-noop-tracing-manager", prepared
+        )
 
     def test_server_only_service_does_not_require_grpc_client_factory(self) -> None:
         config = (
@@ -677,6 +681,10 @@ class CppTelemetryBaselineTest(unittest.TestCase):
             "servicelib-disabled-server-middlewares", prepared
         )
         self.assertNotIn("disable-all-pipeline-middlewares", prepared)
+        self.assertIn("set_tracing_headers: false", prepared)
+        self.assertIn(
+            "component-name: servicelib-noop-tracing-manager", prepared
+        )
 
     def test_missing_server_component_is_rejected(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "server component"):
