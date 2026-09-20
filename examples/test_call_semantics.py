@@ -8,6 +8,24 @@ import call_semantics
 
 
 class CurrentGraphContractTest(unittest.TestCase):
+    def test_copy_preserves_build_prefixed_sources_but_ignores_build_trees(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            destination = root / "destination"
+            source.mkdir()
+            (source / "build_substream_result.rs").write_text("source\n")
+            (source / "build-release").mkdir()
+            (source / "build-release/artifact").write_text("generated\n")
+
+            call_semantics.copy_example(source, destination)
+
+            self.assertEqual(
+                (destination / "build_substream_result.rs").read_text(),
+                "source\n",
+            )
+            self.assertFalse((destination / "build-release").exists())
+
     def test_profile_matrix_compares_frameworks_with_native_baselines(self) -> None:
         self.assertEqual(
             set(call_semantics.VARIANTS),
