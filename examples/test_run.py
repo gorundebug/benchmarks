@@ -52,6 +52,7 @@ class DependencyEnvironmentTest(unittest.TestCase):
             actual = benchmark.environment(args, language)
         for name, value in contract.items():
             self.assertEqual(actual[name], value)
+        self.assertEqual(actual["DOCKER_IMAGE_TAG"], "benchmark-current")
 
 
 BENCHMARKS = Path(__file__).resolve().parents[1]

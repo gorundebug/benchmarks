@@ -395,6 +395,9 @@ def environment(args: argparse.Namespace, language: Language) -> dict[str, str]:
             ),
             "BENCHMARK_VUS": str(args.vus),
             "DOCKER_TARGET": "runtime",
+            "DOCKER_IMAGE_TAG": "benchmark-" + getattr(
+                args, "graph_profile", "function-call"
+            ),
             "EXAMPLE_PROFILE": getattr(
                 args, "graph_profile", "function-call"
             ),
@@ -1062,7 +1065,10 @@ def verify_cpp_compose_isolation(
     if services is None:
         services = resolved_compose_services(language, env)
     for service in ("inventoryservice", "orderservice"):
-        expected_image = f"{expected_prefix}-{service}:local"
+        expected_image = (
+            f"{expected_prefix}-{service}:"
+            f"{env.get('DOCKER_IMAGE_TAG', 'local')}"
+        )
         actual_image = services[service].get("image")
         if actual_image != expected_image:
             raise RuntimeError(
