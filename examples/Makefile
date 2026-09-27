@@ -65,7 +65,7 @@ cpp-coro: ## Build and benchmark the C++20 coroutine example
 
 dependency-source-cache-invalidate: ## Recreate fetched C++ source/CMake caches, preserving ccache and Nexus
 	@set -e; found=0; \
-	for project in "$(DEPENDENCIES_DIR)/cppexample" "$(DEPENDENCIES_DIR)/cppboostexample"; do \
+	for project in "$(DEPENDENCIES_DIR)/cppexample" "$(DEPENDENCIES_DIR)/cppboostexample" "$(DEPENDENCIES_DIR)/cppcoroexample"; do \
 		if [ -f "$$project/make.generated.mk" ]; then \
 			found=1; $(MAKE) -C "$$project" dependency-source-cache-invalidate; \
 		fi; \

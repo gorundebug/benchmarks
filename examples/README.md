@@ -112,11 +112,14 @@ current images.
 
 ### Experimental C++20 coroutine graph
 
-The separate `cpp-coro` variant uses the local `cppcoroexample` and
-`cppcoroservicelib` projects. It is opt-in, not part of the default matrix or
-the generator-backed `call_semantics.py` workflow. The canonical coroutine
-example must already contain the requested graph profile; the same generated
-and live graph checks remain mandatory.
+The `cpp-coro` variant uses the local `cppcoroexample` and
+`cppcoroservicelib` projects. It is part of the default direct and
+`function-call` and `current` comparison matrices. Unlike the six
+generator-backed variants, the coroutine example is copied from its adapted
+source repository, so no full `cppcoro.zip` merge appears in the preparation
+log. For `current`, only the profile-dependent graph/config declarations are
+applied from the generated C++/Boost archive delta; asynchronous service code
+is retained. Both the prepared graph and live graph are checked.
 
 ```bash
 make cpp-coro DEPENDENCIES_DIR=/path/to/stream_app_go \

@@ -42,7 +42,9 @@ The two complete profiles are therefore:
 ```
 
 Both modes generate an isolated graph for the selected profile and benchmark
-all six framework/native pairs. They verify `/status/graph` on the actually
+all six framework/native pairs plus the adapted `cpp-coro` implementation.
+For `current`, profile preparation updates its generated graph/config
+declarations while retaining coroutine business code. They verify `/status/graph` on the actually
 running framework services before warm-up. A stale image or a graph whose call
 semantics do not match the requested profile fails the run instead of producing
 a mislabeled benchmark report. Native baselines have no ServiceLib graph, so
@@ -126,9 +128,9 @@ Local development uses the same `DEPENDENCIES_DIR` and
 `DEPENDENCY_PROXY_DIR` options as Boost.
 
 The example contains the adapted coroutine source. The shared generator does
-not yet have a coroutine backend: do not regenerate it with the synchronous
-Boost backend. A requested graph profile must still match the actual graph;
-incompatible profiles are not silently accepted.
+not yet have a full coroutine backend: do not regenerate it with the synchronous
+Boost backend. Profile preparation applies only generated graph/config changes
+to the adapted source and checks the actual graph and running services.
 
 Run only this variant with `make -C examples cpp-coro`.
 The existing `cpp-boost-native` remains the transport baseline; there is no
