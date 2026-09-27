@@ -57,6 +57,12 @@ DURABLE_TIMEOUT ?= 300
 
 .PHONY: setup-native run quick function-call call-semantics durable durable-quick http-transport http-transport-quick http-json-reject http-json-reject-quick typescript-http-only typescript-http-only-quick grpc-only grpc-only-quick graph-without-grpc graph-without-grpc-quick typescript-kafka-disabled typescript-kafka-disabled-quick capacity overload overload-quick build clean help dependency-source-cache-invalidate
 
+.PHONY: cpp-coro
+cpp-coro: ## Build and benchmark the C++20 coroutine example
+	$(PYTHON) run.py --language cpp-coro --cores $(CORES) --loadgen-cores $(LOADGEN_CORES) \
+		--vus $(VUS) --duration $(DURATION) --warmup $(WARMUP) --runs $(RUNS) \
+		--result-prefix cpp-coro --max-map-count $(MAX_MAP_COUNT)
+
 dependency-source-cache-invalidate: ## Recreate fetched C++ source/CMake caches, preserving ccache and Nexus
 	@set -e; found=0; \
 	for project in "$(DEPENDENCIES_DIR)/cppexample" "$(DEPENDENCIES_DIR)/cppboostexample"; do \

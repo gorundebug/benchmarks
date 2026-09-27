@@ -110,6 +110,29 @@ current images.
 
 ## Run
 
+### Experimental C++20 coroutine graph
+
+The separate `cpp-coro` variant uses the local `cppcoroexample` and
+`cppcoroservicelib` projects. It is opt-in, not part of the default matrix or
+the generator-backed `call_semantics.py` workflow. The canonical coroutine
+example must already contain the requested graph profile; the same generated
+and live graph checks remain mandatory.
+
+```bash
+make cpp-coro DEPENDENCIES_DIR=/path/to/stream_app_go \
+  DEPENDENCY_PROXY_DIR=/path/to/dependency-proxy \
+  CMAKE_BUILD_PARALLEL_LEVEL=4 \
+  CORES=2 LOADGEN_CORES=6 VUS=256 DURATION=20s WARMUP=5s RUNS=3
+```
+
+This builds optimized images using the example's stock Docker command and
+local modules. It retains the Boost benchmark's worker/channel configuration,
+CPU quotas, noop telemetry, missing-SKU payload, Kafka-disabled endpoint and
+best-of-three aggregation. Runtime images and overrides are separate from
+`cpp-boost`; results use `.artifacts/cpp-coro.*`.
+For a same-session comparison, `run.py` also accepts
+`--language cpp-coro --language cpp-boost --language cpp-boost-native`.
+
 Missing native projects are cloned automatically at their pinned revisions.
 To fetch all six explicitly without building or running benchmarks:
 

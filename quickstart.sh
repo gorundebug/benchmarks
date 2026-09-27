@@ -27,7 +27,7 @@ else
   MANAGED_DEPENDENCIES=1
 fi
 
-REPOS=(goexample cppexample cppboostexample pyexample rustexample tsexample servicelib cppservicelib cppboostservicelib pyservicelib rustservicelib tsservicelib servicegen)
+REPOS=(goexample cppexample cppboostexample cppcoroexample pyexample rustexample tsexample servicelib cppservicelib cppboostservicelib cppcoroservicelib pyservicelib rustservicelib tsservicelib servicegen)
 MIRROR_REPOS=("${REPOS[@]}" gonativeexample cppnativeexample cppboostnativeexample pynativeexample rustnativeexample tsnativeexample)
 
 export GIT_HTTP_LOW_SPEED_LIMIT=${DEPENDENCY_GIT_LOW_SPEED_LIMIT:-1024}
@@ -183,7 +183,7 @@ python3 "$BENCHMARK_ROOT/examples/run.py" --fetch-native \
 # Rust keeps the equivalent code force-added inside rustexample itself, so it
 # needs no extra step.
 echo "==> Restoring each example's own service/module repos"
-for example in goexample cppexample cppboostexample pyexample tsexample; do
+for example in goexample cppexample cppboostexample cppcoroexample pyexample tsexample; do
   script="$DEPENDENCIES_DIR/$example/clone.generated.sh"
   if [ -f "$script" ]; then
     echo "  $example"
