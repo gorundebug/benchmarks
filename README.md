@@ -118,19 +118,18 @@ benchmark modes and run instructions.
 
 The public runtime is https://github.com/gorundebug/cppcoroservicelib and its
 canonical example is https://github.com/gorundebug/cppcoroexample. Both are
-restored by `quickstart.sh`, alongside the existing Boost repositories.
+restored by `quickstart.sh`; the retired Boost runtime is no longer fetched.
 They are included in the ordinary runner selection, not an opt-in experiment.
 
 The benchmark name is `cpp-coro`; profiling and live conformance use
-`cppcoro`, following their respective existing Boost naming conventions.
+`cppcoro`, following each runner's naming conventions.
 CPU quotas, graph validation, load, telemetry and assertions are unchanged.
 Local development uses the same `DEPENDENCIES_DIR` and
-`DEPENDENCY_PROXY_DIR` options as Boost.
+`DEPENDENCY_PROXY_DIR` options as the other runtimes.
 
-The example contains the adapted coroutine source. The shared generator does
-not yet have a full coroutine backend: do not regenerate it with the synchronous
-Boost backend. Profile preparation applies only generated graph/config changes
-to the adapted source and checks the actual graph and running services.
+The generator emits native coroutine code for `CppCoro`. Profile preparation
+merges its own `cppcoro.zip` into an isolated copy without replacing user-owned
+business functions, then checks the generated and live graphs.
 
 Run only this variant with `make -C examples cpp-coro`.
 The existing `cpp-boost-native` remains the transport baseline; there is no

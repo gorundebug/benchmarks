@@ -110,16 +110,13 @@ current images.
 
 ## Run
 
-### Experimental C++20 coroutine graph
+### C++20 coroutine graph
 
-The `cpp-coro` variant uses the local `cppcoroexample` and
-`cppcoroservicelib` projects. It is part of the default direct and
-`function-call` and `current` comparison matrices. Unlike the six
-generator-backed variants, the coroutine example is copied from its adapted
-source repository, so no full `cppcoro.zip` merge appears in the preparation
-log. For `current`, only the profile-dependent graph/config declarations are
-applied from the generated C++/Boost archive delta; asynchronous service code
-is retained. Both the prepared graph and live graph are checked.
+The `cpp-coro` variant uses `cppcoroexample` and `cppcoroservicelib`.
+Both `function-call` and `current` profiles use their own generated
+`cppcoro.zip`, merged with the canonical user-owned business functions.
+No synchronous Boost archive is used as a coroutine substitute.
+Both the prepared graph and live graph are checked.
 
 ```bash
 make cpp-coro DEPENDENCIES_DIR=/path/to/stream_app_go \
@@ -129,12 +126,11 @@ make cpp-coro DEPENDENCIES_DIR=/path/to/stream_app_go \
 ```
 
 This builds optimized images using the example's stock Docker command and
-local modules. It retains the Boost benchmark's worker/channel configuration,
+local modules. It uses the common worker/channel configuration,
 CPU quotas, noop telemetry, missing-SKU payload, Kafka-disabled endpoint and
-best-of-three aggregation. Runtime images and overrides are separate from
-`cpp-boost`; results use `.artifacts/cpp-coro.*`.
+best-of-three aggregation. Runtime images and overrides are isolated; results use `.artifacts/cpp-coro.*`.
 For a same-session comparison, `run.py` also accepts
-`--language cpp-coro --language cpp-boost --language cpp-boost-native`.
+`--language cpp-coro --language cpp-boost-native`.
 
 Missing native projects are cloned automatically at their pinned revisions.
 To fetch all six explicitly without building or running benchmarks:
@@ -186,7 +182,7 @@ python3 run.py --language go --language go-native --cores 4 --vus 64
 ```
 
 The equivalent pairs are `cpp`/`cpp-native`,
-`cpp-boost`/`cpp-boost-native`, `python`/`python-native` and
+`cpp-coro`/`cpp-boost-native`, `python`/`python-native` and
 `rust`/`rust-native`. C++ native uses userver directly, preserving the runtime
 under the generated ServiceLib implementation; Python native uses aiohttp and
 grpc.aio; Rust native uses Axum and Tonic. Boost native uses Beast and
@@ -278,7 +274,7 @@ make capacity \
 ```
 
 All implementations run sequentially when `CAPACITY_LANGUAGES` is omitted.
-Valid names are `go`, `go-native`, `cpp`, `cpp-native`, `cpp-boost`,
+Valid names are `go`, `go-native`, `cpp`, `cpp-native`, `cpp-coro`,
 `cpp-boost-native`, `python`, `python-native`, `rust`, `rust-native`,
 `typescript`, and `typescript-native`.
 

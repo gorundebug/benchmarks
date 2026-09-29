@@ -469,16 +469,16 @@ class CleanCheckoutContextTest(unittest.TestCase):
         self.assertIsNotNone(language.revision)
         self.assertRegex(language.revision or "", r"^(?:main|v\d+\.\d+\.\d+)$")
 
-    def test_cpp_boost_never_uses_example_as_dependency_source(self) -> None:
+    def test_cpp_coro_never_uses_example_as_dependency_source(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            versions = root / "cppboostservicelib" / "cmake"
+            versions = root / "cppcoroservicelib" / "cmake"
             versions.mkdir(parents=True)
             (versions / "DependencyVersions.cmake").write_text(
-                'set(CPPBOOSTSERVICELIB_GRPC_VERSION "v1.2.3")\n'
-                'set(CPPBOOSTSERVICELIB_ASIO_GRPC_VERSION "v4.5.6")\n'
+                'set(CPPCOROSERVICELIB_GRPC_VERSION "v1.2.3")\n'
+                'set(CPPCOROSERVICELIB_ASIO_GRPC_VERSION "v4.5.6")\n'
             )
-            for language_name in ("cpp-boost", "cpp-boost-native"):
+            for language_name in ("cpp-coro", "cpp-boost-native"):
                 language = next(
                     item for item in benchmark.LANGUAGES
                     if item.name == language_name
@@ -498,9 +498,9 @@ class CleanCheckoutContextTest(unittest.TestCase):
                     "https://github.com/Tradias/asio-grpc.git#v4.5.6",
                 )
 
-    def test_cpp_boost_respects_explicit_dependency_sources(self) -> None:
+    def test_cpp_coro_respects_explicit_dependency_sources(self) -> None:
         language = next(
-            item for item in benchmark.LANGUAGES if item.name == "cpp-boost"
+            item for item in benchmark.LANGUAGES if item.name == "cpp-coro"
         )
         explicit = {
             "GRPC_SOURCE_CONTEXT": "/cache/grpc-src",
@@ -531,7 +531,7 @@ class CleanCheckoutContextTest(unittest.TestCase):
 
 class BoostWorkerConfigurationTest(unittest.TestCase):
     def test_framework_requires_workers_argument_for_both_services(self) -> None:
-        language = next(item for item in benchmark.LANGUAGES if item.name == "cpp-boost")
+        language = next(item for item in benchmark.LANGUAGES if item.name == "cpp-coro")
         resolved = {
             "services": {
                 service: {"command": ["binary", "--workers", "3"]}
@@ -540,7 +540,7 @@ class BoostWorkerConfigurationTest(unittest.TestCase):
         }
         completed = type("Completed", (), {"stdout": __import__("json").dumps(resolved)})()
         with patch.object(benchmark, "run", return_value=completed):
-            benchmark.verify_boost_worker_configuration(language, 3, {})
+            benchmark.verify_coro_worker_configuration(language, 3, {})
 
     def test_native_rejects_worker_count_different_from_cores(self) -> None:
         language = next(
@@ -557,20 +557,20 @@ class BoostWorkerConfigurationTest(unittest.TestCase):
             patch.object(benchmark, "run", return_value=completed),
             self.assertRaisesRegex(RuntimeError, "expected 2"),
         ):
-            benchmark.verify_boost_worker_configuration(language, 2, {})
+            benchmark.verify_coro_worker_configuration(language, 2, {})
 
 
 class CppComposeIsolationTest(unittest.TestCase):
     def test_runtime_overlays_do_not_repeat_image_entrypoints(self) -> None:
         examples = Path(__file__).resolve().parent
-        for overlay in ("compose.cpp.yml", "compose.cpp-boost.yml"):
+        for overlay in ("compose.cpp.yml", "compose.cpp-coro.yml"):
             with self.subTest(overlay=overlay):
                 contents = (examples / overlay).read_text()
                 self.assertNotIn("/usr/local/bin/example_", contents)
 
-    def test_boost_runtime_uses_packaged_config_path(self) -> None:
+    def test_coro_runtime_uses_packaged_config_path(self) -> None:
         contents = (
-            Path(__file__).resolve().parent / "compose.cpp-boost.yml"
+            Path(__file__).resolve().parent / "compose.cpp-coro.yml"
         ).read_text()
         self.assertIn("/app/config/config.yaml", contents)
         self.assertNotIn("/app/inventoryservice/config", contents)
@@ -599,7 +599,7 @@ class CppComposeIsolationTest(unittest.TestCase):
     def test_cpp_variants_require_their_own_build_image(self) -> None:
         for language_name, expected_prefix in (
             ("cpp", "cppexample"),
-            ("cpp-boost", "cppboostexample"),
+            ("cpp-coro", "cppcoroexample"),
         ):
             with self.subTest(language=language_name):
                 language = next(
@@ -620,7 +620,7 @@ class CppComposeIsolationTest(unittest.TestCase):
 
     def test_mixed_cpp_image_is_rejected_before_benchmark(self) -> None:
         language = next(
-            item for item in benchmark.LANGUAGES if item.name == "cpp-boost"
+            item for item in benchmark.LANGUAGES if item.name == "cpp-coro"
         )
         resolved = {
             "services": {
@@ -770,7 +770,7 @@ class BenchmarkKafkaConfigurationTest(unittest.TestCase):
             self.assertIn("orderEventsSecurityProtocol: SASL_SSL", prepared)
             self.assertIn("orderProcessedEnabled: false", prepared)
 
-    def test_boost_orderservice_override_disables_kafka(self) -> None:
+    def test_coro_orderservice_override_disables_kafka(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "dependencies"
             artifacts = Path(directory) / "artifacts"
@@ -778,7 +778,7 @@ class BenchmarkKafkaConfigurationTest(unittest.TestCase):
                 ("inventoryservice", "inventoryPriorityWorkers"),
                 ("orderservice", "defaultPool"),
             ):
-                config = root / "cppboostexample" / service / "config"
+                config = root / "cppcoroexample" / service / "config"
                 config.mkdir(parents=True)
                 (config / "overrides.yaml").write_text(
                     "pools:\n"
@@ -795,10 +795,10 @@ class BenchmarkKafkaConfigurationTest(unittest.TestCase):
                 patch.object(benchmark, "ROOT", root),
                 patch.object(benchmark, "ARTIFACTS", artifacts),
             ):
-                benchmark.prepare_cppboost_configs(2, 2)
+                benchmark.prepare_coro_configs(2, 2)
 
             prepared = (
-                artifacts / "cppboost-config" / "orderservice.overrides.yaml"
+                artifacts / "cppcoro-config" / "orderservice.overrides.yaml"
             ).read_text()
             self.assertNotIn("enabled: true", prepared)
             self.assertEqual(
@@ -855,7 +855,7 @@ class ScenarioConfigurationTest(unittest.TestCase):
             target="http://orderservice:9091/probe",
         )
         language = next(
-            item for item in benchmark.LANGUAGES if item.name == "cpp-boost"
+            item for item in benchmark.LANGUAGES if item.name == "cpp-coro"
         )
         env = benchmark.environment(args, language)
         self.assertEqual(env["BENCHMARK_METHOD"], "GET")
@@ -904,7 +904,7 @@ class ScenarioConfigurationTest(unittest.TestCase):
             if item.name == "cpp-boost-native"
         )
         framework = next(
-            item for item in benchmark.LANGUAGES if item.name == "cpp-boost"
+            item for item in benchmark.LANGUAGES if item.name == "cpp-coro"
         )
         self.assertEqual(
             benchmark.environment(args, native)["NATIVE_DIAGNOSTIC_BYPASS_GRPC"],

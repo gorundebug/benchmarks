@@ -30,7 +30,7 @@ class CurrentGraphContractTest(unittest.TestCase):
         self.assertEqual(
             set(call_semantics.VARIANTS),
             {
-                "go", "cpp", "cpp-boost", "cpp-coro", "python", "rust", "typescript",
+                "go", "cpp", "cpp-coro", "python", "rust", "typescript",
             },
         )
 
@@ -72,7 +72,7 @@ class CurrentGraphContractTest(unittest.TestCase):
                 "fn main() {}\n",
             )
 
-    def test_coroutine_example_is_copied_and_verified_without_archive(self) -> None:
+    def test_coroutine_example_uses_its_own_generated_archive(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "cppcoroexample"
@@ -84,15 +84,24 @@ class CurrentGraphContractTest(unittest.TestCase):
             archives = root / "archives"
             workspace.mkdir()
             archives.mkdir()
+            (archives / "cppcoro.zip").write_bytes(b"archive fixture")
+            business = source / "handler.cpp"
+            business.write_text("user-owned business code\n")
             with (
                 mock.patch.object(call_semantics, "ROOT", root),
                 mock.patch.object(call_semantics, "ARTIFACTS", root / "artifacts"),
                 mock.patch.object(call_semantics, "FRAMEWORKS", ()),
                 mock.patch.object(call_semantics, "generate_archives", return_value=""),
+                mock.patch.object(call_semantics, "run", return_value=mock.Mock(stdout="merged")) as merge,
             ):
                 call_semantics.prepare_workspace(
                     workspace, archives, ["cpp-coro"], "function-call"
                 )
+            merge.assert_called_once_with(
+                ["bash", "scripts/merge.generated.sh", str(archives / "cppcoro.zip")],
+                cwd=workspace / "cppcoroexample", capture=True,
+            )
+            self.assertEqual((workspace / "cppcoroexample/handler.cpp").read_text(), "user-owned business code\n")
             self.assertEqual(
                 (workspace / "cppcoroexample/graph/example.generated.yaml").read_text(),
                 "callSemantics: FunctionCall\n" * 19,
@@ -113,8 +122,7 @@ class CurrentGraphContractTest(unittest.TestCase):
         selected = list(call_semantics.VARIANTS)
         expected = [
             variant for language in selected
-            for variant in ((language,) if language == "cpp-coro" else
-                            (language, f"{language}-native"))
+            for variant in (language, "cpp-boost-native" if language == "cpp-coro" else f"{language}-native")
         ]
         for profile in ("function-call", "current"):
             command = call_semantics.benchmark_command(args, selected, profile)
