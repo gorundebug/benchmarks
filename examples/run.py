@@ -22,8 +22,9 @@ from pathlib import Path
 from typing import Any, TextIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import dependency_command
 import tooling_lock
+
+import dependency_command
 
 BENCHMARK_DIR = Path(__file__).resolve().parent
 BENCHMARK_ROOT = BENCHMARK_DIR.parent
